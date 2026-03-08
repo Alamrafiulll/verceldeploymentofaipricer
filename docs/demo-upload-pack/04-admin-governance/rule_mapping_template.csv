@@ -1,0 +1,4 @@
+document_type,field_name,target_rule,required
+campaign_memo,gift_sku,campaign_rule.entitlement_json,yes
+pricing_policy,approval_limit,policy_clause.structured_json,yes
+contract_pricing,floor_price,contract_line.floor_price,yes

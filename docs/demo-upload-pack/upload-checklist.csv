@@ -1,0 +1,24 @@
+folder,file_name,login_to_use,upload_center_category,why_upload_it
+01-sales-manager,sales_history_q1_2026.csv,admin@gmail.com,Sales History,Loads historical sales context
+01-sales-manager,product_catalog_2026.xlsx,admin@gmail.com,Product Catalog,Loads product master data for pricing and comparison
+01-sales-manager,current_price_list_channels.xlsx,admin@gmail.com,Current Price List,Loads channel pricebook references
+01-sales-manager,competitor_pricing_market_scan.csv,admin@gmail.com,Competitor Pricing,Loads market comparison inputs
+01-sales-manager,promotion_calendar_2026.xlsx,admin@gmail.com,Promotion Calendar,Loads campaign timing and eligibility context
+02-approver,pricing_approval_sheet_q2.xlsx,admin@gmail.com,Pricing Approval Sheet,Shows approval document ingestion
+02-approver,strategic_pricing_guideline_2026.pdf,admin@gmail.com,Strategic Pricing Guideline,Shows strategic pricing governance inputs
+02-approver,quarterly_pricing_plan_q3.xlsx,admin@gmail.com,Quarterly Pricing Plan,Shows strategic plan uploads
+02-approver,margin_target_sheet_2026.xlsx,admin@gmail.com,Margin Target Sheet,Shows margin target governance
+03-executive-viewer,strategic_targets_2026.csv,admin@gmail.com,Strategic Targets,Shows executive target uploads
+03-executive-viewer,market_report_water_heaters_2026.pdf,admin@gmail.com,Market Reports,Shows market report uploads
+04-admin-governance,pricing_policy_master_2026.pdf,admin@gmail.com,Pricing Policy,Creates policy ingestion and source reference context
+04-admin-governance,campaign_memo_dc_pump_q3_2026.pdf,admin@gmail.com,Campaign Memo,Creates campaign eligibility logic
+04-admin-governance,trading_terms_fy2026.pdf,admin@gmail.com,Trading Terms,Creates trading terms and rebate setup
+04-admin-governance,rebate_agreement_fy2026.csv,admin@gmail.com,Rebate Agreement,Loads rebate program inputs
+04-admin-governance,contract_pricing_strategic_accounts.xlsx,admin@gmail.com,Contract Pricing Document,Loads contract floors and ceilings
+04-admin-governance,model_configuration_control_tower.json,admin@gmail.com,Model Configuration,Shows model configuration upload flow
+04-admin-governance,rule_mapping_template.csv,admin@gmail.com,Rule Mapping Template,Shows rule mapping support
+04-admin-governance,user_role_config.csv,admin@gmail.com,User Role Config,Shows admin governance configuration upload
+04-admin-governance,audit_log_archive_sample.csv,admin@gmail.com,Audit Log Archive,Shows archive ingestion flow
+05-invalid-tests,current_price_list_invalid_headers.csv,admin@gmail.com,Current Price List,Tests invalid header validation
+05-invalid-tests,campaign_memo_empty.txt,admin@gmail.com,Campaign Memo,Tests empty file rejection
+05-invalid-tests,model_configuration_invalid.json,admin@gmail.com,Model Configuration,Tests invalid JSON parsing

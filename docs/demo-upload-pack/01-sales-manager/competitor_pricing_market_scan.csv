@@ -1,0 +1,6 @@
+competitor_name,competitor_sku,product_name,category,price,warranty_years,feature_count,brand_tier,spec_score
+Competitor A,CMP-001,Product 2,steel,159.2,3,5,premium,70
+Competitor B,CMP-002,Product 3,roofing,482.89,4,6,value,74
+Competitor A,CMP-003,Product 4,finishes,392.69,5,7,premium,78
+Competitor B,CMP-004,Product 5,cement,131.88,3,8,value,82
+Competitor A,CMP-005,Product 6,steel,224.65,4,9,premium,86

@@ -1,0 +1,522 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Count 5 /Kids [5 0 R 7 0 R 9 0 R 11 0 R 13 0 R] >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Length 1971 >>
+stream
+BT
+/F1 11 Tf
+50 760 Td
+(CHIN HIN AI PRICING STRATEGIST USER GUIDE) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(PURPOSE) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(Chin Hin AI Pricing Strategist helps business users make faster, safer, and more explainable) Tj
+0 -15 Td
+(pricing decisions. It combines uploaded business documents, AI recommendations, finance) Tj
+0 -15 Td
+(logic, approval governance, and decision traceability in one platform.) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(WHO USES THE SYSTEM) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(SALES MANAGER) Tj
+0 -15 Td
+(? builds quotes) Tj
+0 -15 Td
+(? reviews AI recommendations) Tj
+0 -15 Td
+(? checks true margin and leakage control) Tj
+0 -15 Td
+(? reviews campaign, contract, and competitor context) Tj
+0 -15 Td
+(? requests approval if required) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(SALES DIRECTOR APPROVER) Tj
+0 -15 Td
+(? reviews pending approvals) Tj
+0 -15 Td
+(? compares requested price vs AI recommendation) Tj
+0 -15 Td
+(? checks policy source references) Tj
+0 -15 Td
+(? checks business impact before approving or rejecting) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(EXECUTIVE VIEWER) Tj
+0 -15 Td
+(? tracks pricing health) Tj
+0 -15 Td
+(? monitors leakage and margin trends) Tj
+0 -15 Td
+(? reviews approval speed and pricing compliance) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(ADMIN GOVERNANCE) Tj
+0 -15 Td
+(? uploads and governs business files) Tj
+0 -15 Td
+(? manages users and roles) Tj
+0 -15 Td
+(? reviews extracted rules) Tj
+0 -15 Td
+(? manages policy, campaign, contract, and rebate controls) Tj
+0 -15 Td
+(? reviews AI traceability and model activity) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(LOGIN DETAILS) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(All demo users use password 123456.) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(? Admin: admin@gmail.com) Tj
+0 -15 Td
+(? Sales Manager: salesmanager@gmail.com) Tj
+0 -15 Td
+(? Sales Director Approver: salesdirector@gmail.com) Tj
+0 -15 Td
+(? Executive Viewer: executiveviewer@gmail.com) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(Important:) Tj
+0 -15 Td
+(? only the admin account can create new users) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Length 1611 >>
+stream
+BT
+/F1 11 Tf
+50 760 Td
+() Tj
+0 -15 Td
+(MAIN AREAS) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(? Login: /login) Tj
+0 -15 Td
+(? Sales: /sales) Tj
+0 -15 Td
+(? Approvals: /approvals) Tj
+0 -15 Td
+(? Analytics: /analytics) Tj
+0 -15 Td
+(? Admin: /admin) Tj
+0 -15 Td
+(? Upload Center: /upload-center) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(HOW THE PLATFORM WORKS) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(1. UPLOAD BUSINESS FILES) Tj
+0 -15 Td
+(Business files are uploaded through the Upload Center.) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(Examples:) Tj
+0 -15 Td
+(? price lists) Tj
+0 -15 Td
+(? policy PDFs) Tj
+0 -15 Td
+(? campaign memos) Tj
+0 -15 Td
+(? trading terms) Tj
+0 -15 Td
+(? rebate agreements) Tj
+0 -15 Td
+(? contract pricing sheets) Tj
+0 -15 Td
+(? competitor pricing files) Tj
+0 -15 Td
+(? strategic target sheets) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(2. EXTRACT AND STRUCTURE INFORMATION) Tj
+0 -15 Td
+(The system:) Tj
+0 -15 Td
+(? detects the document category) Tj
+0 -15 Td
+(? validates whether the role can upload it) Tj
+0 -15 Td
+(? extracts useful business data) Tj
+0 -15 Td
+(? creates a summary) Tj
+0 -15 Td
+(? stores confidence and review status) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(3. ACTIVATE BUSINESS RULES) Tj
+0 -15 Td
+(Once reviewed, uploaded data becomes usable pricing logic such as:) Tj
+0 -15 Td
+(? policy clauses) Tj
+0 -15 Td
+(? active pricebooks) Tj
+0 -15 Td
+(? campaign rules) Tj
+0 -15 Td
+(? rebate programs) Tj
+0 -15 Td
+(? contract pricing controls) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(4. GENERATE RECOMMENDATIONS) Tj
+0 -15 Td
+(When a quote is evaluated, the system combines:) Tj
+0 -15 Td
+(? quote details) Tj
+0 -15 Td
+(? finance logic) Tj
+0 -15 Td
+(? policy rules) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 1524 >>
+stream
+BT
+/F1 11 Tf
+50 760 Td
+(? pricebooks) Tj
+0 -15 Td
+(? campaigns) Tj
+0 -15 Td
+(? rebates) Tj
+0 -15 Td
+(? contracts) Tj
+0 -15 Td
+(? competitor data) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(The output includes:) Tj
+0 -15 Td
+(? recommended price) Tj
+0 -15 Td
+(? confidence) Tj
+0 -15 Td
+(? true margin) Tj
+0 -15 Td
+(? leakage amount and reasons) Tj
+0 -15 Td
+(? market comparison) Tj
+0 -15 Td
+(? next best action) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(5. ROUTE FOR APPROVAL IF NEEDED) Tj
+0 -15 Td
+(If a quote is risky or out of policy, it is routed to the approver with:) Tj
+0 -15 Td
+(? requested price) Tj
+0 -15 Td
+(? AI recommendation) Tj
+0 -15 Td
+(? policy source reference) Tj
+0 -15 Td
+(? business impact) Tj
+0 -15 Td
+(? approval trail) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(FIRST-TIME SETUP) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(START THE BACKEND) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(cd "backend") Tj
+0 -15 Td
+(& ".\\.venv\\Scripts\\Activate.ps1") Tj
+0 -15 Td
+(python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(START THE FRONTEND) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(cd "frontend") Tj
+0 -15 Td
+(npm run dev) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(OPEN THE APP) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(? Frontend: http://localhost:5173) Tj
+0 -15 Td
+(? API docs: http://localhost:8000/docs) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(DEMO UPLOAD PACK) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(Use the ready-made upload pack here:) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(? [docs/demo-upload-) Tj
+0 -15 Td
+(pack]\(c:/Users/rafiu/OneDrive/Desktop/github%20upload/Chin%20hin/ai%20pricing/docs/demo-) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 1669 >>
+stream
+BT
+/F1 11 Tf
+50 760 Td
+(upload-pack\)) Tj
+0 -15 Td
+(? [docs/demo-upload-pack/README.md]\(c:/Users/rafiu/OneDrive/Desktop/github%20upload/Chin%20h) Tj
+0 -15 Td
+(in/ai%20pricing/docs/demo-upload-pack/README.md\)) Tj
+0 -15 Td
+(? [docs/demo-upload-pack/upload-checklist.csv]\(c:/Users/rafiu/OneDrive/Desktop/github%20uplo) Tj
+0 -15 Td
+(ad/Chin%20hin/ai%20pricing/docs/demo-upload-pack/upload-checklist.csv\)) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(RECOMMENDED UPLOAD ORDER) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(1. Product Catalog) Tj
+0 -15 Td
+(2. Current Price List) Tj
+0 -15 Td
+(3. Competitor Pricing) Tj
+0 -15 Td
+(4. Promotion Calendar) Tj
+0 -15 Td
+(5. Pricing Policy) Tj
+0 -15 Td
+(6. Campaign Memo) Tj
+0 -15 Td
+(7. Trading Terms) Tj
+0 -15 Td
+(8. Rebate Agreement) Tj
+0 -15 Td
+(9. Contract Pricing Document) Tj
+0 -15 Td
+(10. Strategic Targets) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(WHAT TO SHOW IN A DEMO) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(SALES MANAGER) Tj
+0 -15 Td
+(Show:) Tj
+0 -15 Td
+(? quote creation or quote opening) Tj
+0 -15 Td
+(? AI recommendation) Tj
+0 -15 Td
+(? true margin) Tj
+0 -15 Td
+(? pricebook enforcement) Tj
+0 -15 Td
+(? campaign eligibility) Tj
+0 -15 Td
+(? competitor comparison) Tj
+0 -15 Td
+(? next best action) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(APPROVER) Tj
+0 -15 Td
+(Show:) Tj
+0 -15 Td
+(? pending approval) Tj
+0 -15 Td
+(? requested vs recommended price) Tj
+0 -15 Td
+(? policy source reference) Tj
+0 -15 Td
+(? margin and leakage impact) Tj
+0 -15 Td
+(? approval action) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(EXECUTIVE) Tj
+0 -15 Td
+(Show:) Tj
+0 -15 Td
+(? pricing health) Tj
+0 -15 Td
+(? margin and leakage trends) Tj
+0 -15 Td
+(? approval turnaround) Tj
+0 -15 Td
+(? competitor position) Tj
+0 -15 Td
+() Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 1205 >>
+stream
+BT
+/F1 11 Tf
+50 760 Td
+(ADMIN) Tj
+0 -15 Td
+(Show:) Tj
+0 -15 Td
+(? upload review) Tj
+0 -15 Td
+(? user management) Tj
+0 -15 Td
+(? policy and contract governance) Tj
+0 -15 Td
+(? AI recommendation trace viewer) Tj
+0 -15 Td
+(? model run observability) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(TROUBLESHOOTING) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(UPLOAD REJECTED) Tj
+0 -15 Td
+(Check:) Tj
+0 -15 Td
+(? correct document category) Tj
+0 -15 Td
+(? allowed file format) Tj
+0 -15 Td
+(? correct actor role) Tj
+0 -15 Td
+(? file is not empty) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(BACKEND NOT STARTING) Tj
+0 -15 Td
+(Check:) Tj
+0 -15 Td
+(? PostgreSQL is running on port 5432) Tj
+0 -15 Td
+(? migrations have been applied) Tj
+0 -15 Td
+(? backend .venv is activated) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(LOGIN FAILS) Tj
+0 -15 Td
+(Check:) Tj
+0 -15 Td
+(? email is typed exactly) Tj
+0 -15 Td
+(? password is 123456) Tj
+0 -15 Td
+(? backend is running) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(SUMMARY) Tj
+0 -15 Td
+() Tj
+0 -15 Td
+(Chin Hin AI Pricing Strategist helps users upload business documents, convert them into) Tj
+0 -15 Td
+(pricing controls, generate explainable recommendations, control leakage, govern approvals,) Tj
+0 -15 Td
+(and maintain full business traceability.) Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 12 0 R >>
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000141 00000 n 
+0000000211 00000 n 
+0000002234 00000 n 
+0000002360 00000 n 
+0000004023 00000 n 
+0000004149 00000 n 
+0000005725 00000 n 
+0000005851 00000 n 
+0000007573 00000 n 
+0000007701 00000 n 
+0000008959 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+9087
+%%EOF
