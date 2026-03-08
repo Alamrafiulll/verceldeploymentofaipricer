@@ -1,0 +1,5 @@
+name,email,role,account_status
+Admin User,admin@gmail.com,admin,active
+Sales Manager,salesmanager@gmail.com,sales,active
+Sales Director,salesdirector@gmail.com,approver,active
+Executive Viewer,executiveviewer@gmail.com,executive,active

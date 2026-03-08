@@ -1,0 +1,15 @@
+{
+  "version": "schema-v1",
+  "features": [
+    "customer_tier_score",
+    "channel_score",
+    "category_score",
+    "quantity",
+    "discount_percent",
+    "stock_age_days",
+    "stock_on_hand",
+    "days_to_delivery",
+    "strategy_score",
+    "elasticity_score"
+  ]
+}

@@ -1,0 +1,6 @@
+order_no,customer_name,sku,product_name,qty,net_price,channel,order_date
+SO-2026-1001,Customer 2,SKU-1001,Product 2,4,162.74,project,2026-02-10
+SO-2026-1002,Customer 3,SKU-1002,Product 3,5,482.89,direct,2026-02-11
+SO-2026-1003,Customer 4,SKU-1003,Product 4,6,384.34,project,2026-02-12
+SO-2026-1004,Customer 1,SKU-1004,Product 5,7,126.39,direct,2026-02-13
+SO-2026-1005,Customer 2,SKU-1005,Product 6,8,210.89,project,2026-02-14

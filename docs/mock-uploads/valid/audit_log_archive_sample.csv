@@ -1,0 +1,3 @@
+action,entity_type,entity_id,reason,created_at
+quote_created,quote,Q-1001,Initial mock archive row,2026-03-01T09:00:00Z
+approval_requested,approval,A-1001,Mock archive review,2026-03-01T10:00:00Z
