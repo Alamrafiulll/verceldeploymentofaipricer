@@ -7,6 +7,7 @@ Create Date: 2026-02-19 00:00:00
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "20260219_0001"
@@ -15,9 +16,9 @@ branch_labels = None
 depends_on = None
 
 
-role_enum = sa.Enum("sales", "approver", "executive", "admin", name="roleenum")
-customer_tier_enum = sa.Enum("strategic", "core", "growth", name="customertier")
-quote_status_enum = sa.Enum(
+role_enum = postgresql.ENUM("sales", "approver", "executive", "admin", name="roleenum", create_type=False)
+customer_tier_enum = postgresql.ENUM("strategic", "core", "growth", name="customertier", create_type=False)
+quote_status_enum = postgresql.ENUM(
     "draft",
     "recommended",
     "approval_pending",
@@ -25,20 +26,27 @@ quote_status_enum = sa.Enum(
     "rejected",
     "finalized",
     name="quotestatus",
+    create_type=False,
 )
-strategy_mode_enum = sa.Enum(
+strategy_mode_enum = postgresql.ENUM(
     "maximize_profit",
     "clear_inventory",
     "market_expansion",
     name="strategymode",
+    create_type=False,
 )
-risk_level_enum = sa.Enum("low", "medium", "high", name="risklevel")
-approval_status_enum = sa.Enum("pending", "approved", "rejected", name="approvalstatus")
+risk_level_enum = postgresql.ENUM("low", "medium", "high", name="risklevel", create_type=False)
+approval_status_enum = postgresql.ENUM("pending", "approved", "rejected", name="approvalstatus", create_type=False)
 
 
 def upgrade() -> None:
-    # Enum creation is handled by sa.Enum in create_table for SQLite (check constraint)
-    # For Postgres, it would be handled if we used create_type=True (default), but here we just rely on inline definition
+    bind = op.get_bind()
+    role_enum.create(bind, checkfirst=True)
+    customer_tier_enum.create(bind, checkfirst=True)
+    quote_status_enum.create(bind, checkfirst=True)
+    strategy_mode_enum.create(bind, checkfirst=True)
+    risk_level_enum.create(bind, checkfirst=True)
+    approval_status_enum.create(bind, checkfirst=True)
 
     op.create_table(
         "users",
@@ -146,9 +154,9 @@ def upgrade() -> None:
         sa.Column("quote_id", sa.Uuid(), nullable=False),
         sa.Column("model_version", sa.String(length=100), nullable=False),
         sa.Column("feature_schema_version", sa.String(length=100), nullable=False),
-        sa.Column("xgb_outputs_json", sa.JSON(), nullable=False),
-        sa.Column("optimizer_outputs_json", sa.JSON(), nullable=False),
-        sa.Column("gpt_outputs_json", sa.JSON(), nullable=False),
+        sa.Column("xgb_outputs_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("optimizer_outputs_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("gpt_outputs_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["quote_id"], ["quotes.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -180,8 +188,8 @@ def upgrade() -> None:
         sa.Column("action", sa.String(length=120), nullable=False),
         sa.Column("entity_type", sa.String(length=120), nullable=False),
         sa.Column("entity_id", sa.String(length=120), nullable=False),
-        sa.Column("old_json", sa.JSON(), nullable=True),
-        sa.Column("new_json", sa.JSON(), nullable=True),
+        sa.Column("old_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column("new_json", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("reason", sa.Text(), nullable=True),
         sa.Column("model_version", sa.String(length=120), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
@@ -201,3 +209,11 @@ def downgrade() -> None:
     op.drop_table("products")
     op.drop_table("customers")
     op.drop_table("users")
+
+    bind = op.get_bind()
+    approval_status_enum.drop(bind, checkfirst=True)
+    risk_level_enum.drop(bind, checkfirst=True)
+    strategy_mode_enum.drop(bind, checkfirst=True)
+    quote_status_enum.drop(bind, checkfirst=True)
+    customer_tier_enum.drop(bind, checkfirst=True)
+    role_enum.drop(bind, checkfirst=True)

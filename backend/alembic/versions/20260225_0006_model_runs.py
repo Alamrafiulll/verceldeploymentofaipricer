@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=40), nullable=False),
         sa.Column("latency_ms", sa.Numeric(10, 2), nullable=True),
         sa.Column("input_hash", sa.String(length=128), nullable=True),
-        sa.Column("meta_json", sa.JSON(), nullable=False),
+        sa.Column("meta_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )

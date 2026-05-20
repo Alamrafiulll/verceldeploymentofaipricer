@@ -7,6 +7,7 @@ Create Date: 2026-02-25 00:03:00
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "20260225_0003"
@@ -14,26 +15,29 @@ down_revision = "20260223_0002"
 branch_labels = None
 depends_on = None
 
-price_book_channel_enum = sa.Enum(
+price_book_channel_enum = postgresql.ENUM(
     "lsp",
     "wm",
     "em",
     name="pricebookchannel",
+    create_type=False,
 )
-policy_document_type_enum = sa.Enum(
+policy_document_type_enum = postgresql.ENUM(
     "memo",
     "price_list",
     "trading_terms",
     "finance",
     name="policydocumenttype",
+    create_type=False,
 )
-policy_document_status_enum = sa.Enum(
+policy_document_status_enum = postgresql.ENUM(
     "draft",
     "active",
     "archived",
     name="policydocumentstatus",
+    create_type=False,
 )
-policy_clause_type_enum = sa.Enum(
+policy_clause_type_enum = postgresql.ENUM(
     "eligibility",
     "exclusion",
     "entitlement",
@@ -45,11 +49,16 @@ policy_clause_type_enum = sa.Enum(
     "exchange",
     "other",
     name="policyclausetype",
+    create_type=False,
 )
 
 
 def upgrade() -> None:
-    # Enum creation skipped for generic sa.Enum
+    bind = op.get_bind()
+    price_book_channel_enum.create(bind, checkfirst=True)
+    policy_document_type_enum.create(bind, checkfirst=True)
+    policy_document_status_enum.create(bind, checkfirst=True)
+    policy_clause_type_enum.create(bind, checkfirst=True)
 
     op.create_table(
         "policy_documents",
@@ -72,7 +81,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("policy_document_id", sa.Uuid(), nullable=False),
         sa.Column("clause_type", policy_clause_type_enum, nullable=False),
-        sa.Column("structured_json", sa.JSON(), nullable=False),
+        sa.Column("structured_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("raw_text", sa.Text(), nullable=False),
         sa.Column("confidence", sa.Numeric(5, 4), nullable=False),
         sa.ForeignKeyConstraint(["policy_document_id"], ["policy_documents.id"], ondelete="CASCADE"),
@@ -112,4 +121,8 @@ def downgrade() -> None:
     op.drop_table("policy_clauses")
     op.drop_table("policy_documents")
 
-    # Enum drop skipped
+    bind = op.get_bind()
+    policy_clause_type_enum.drop(bind, checkfirst=True)
+    policy_document_status_enum.drop(bind, checkfirst=True)
+    policy_document_type_enum.drop(bind, checkfirst=True)
+    price_book_channel_enum.drop(bind, checkfirst=True)

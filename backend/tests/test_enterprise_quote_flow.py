@@ -299,3 +299,37 @@ def test_recommendation_uses_wm_pricebook_for_distributor_quotes(
     assert payload["pricebook_compliance_summary"]["reference_channel"] == "wm"
     assert payload["pricebook_compliance_summary"]["reference_label"] == "WM"
 
+
+def test_save_draft_quote(
+    client: TestClient,
+    db_session: Session,
+    seeded_users,
+):
+    quote = _seed_pricing_quote(
+        db_session=db_session,
+        seeded_users=seeded_users,
+        quote_status=QuoteStatus.recommended,
+        recommended_price=900.0,
+        band_low=880.0,
+        band_high=920.0,
+    )
+    sales_token = _token(client, "salesmanager@gmail.com", "123456")
+
+    response = client.post(
+        f"/api/quotes/{quote.id}/save-draft",
+        json={
+            "requested_price": 870.0,
+            "strategy_mode": "clear_inventory",
+        },
+        headers={"Authorization": f"Bearer {sales_token}"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "recommended"
+
+    # Refresh quote detail and verify that requested_price and strategy_mode are updated
+    db_session.refresh(quote)
+    db_session.refresh(quote.items[0])
+    assert float(quote.items[0].requested_price) == 870.0
+    assert quote.strategy_mode.value == "clear_inventory"
+
+

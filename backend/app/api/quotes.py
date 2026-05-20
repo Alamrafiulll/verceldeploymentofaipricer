@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+from app.core.config import get_settings
 from app.core.deps import get_current_user, get_db, require_roles
 from app.db.models import Quote, QuoteFinanceSnapshot, QuoteItem, QuoteStatus, RoleEnum, User
 from app.schemas.quote import (
@@ -16,16 +17,14 @@ from app.schemas.quote import (
     QuotePolicyCheckResponse,
     RecommendationResponse,
     RequestApprovalRequest,
+    SaveQuoteDraftRequest,
     SimulateFinanceRequest,
 )
 from app.services.audit_logger import log_audit
-from app.services.contract_engine import evaluate_contract_pricing
 from app.services.finance_engine import compute_true_margin
-from app.services.market_comparison_engine import analyze_product_market_position
 from app.services.model_run_logger import log_model_run
 from app.services.negotiation_assistant import generate_negotiation_guidance
 from app.services.policy_enforcement import evaluate_quote_policies
-from app.services.pricebook_enforcement import evaluate_pricebook_compliance
 from app.services.pricing_service import pricing_service
 
 router = APIRouter()
@@ -120,7 +119,7 @@ def get_quote(
 
     item = quote.items[0]
     latest = sorted(quote.recommendations, key=lambda r: r.created_at)[-1] if quote.recommendations else None
-    market_summary = analyze_product_market_position(db=db, product_id=str(item.product_id))
+    policy_result = evaluate_quote_policies(db=db, quote=quote, actor_user_id=None)
 
     return QuoteDetailResponse(
         id=str(quote.id),
@@ -149,7 +148,7 @@ def get_quote(
         },
         latest_recommendation=(
             {
-                "foundry": latest.foundry_outputs_json,
+                "xgb": latest.xgb_outputs_json,
                 "optimizer": latest.optimizer_outputs_json,
                 "gpt": latest.gpt_outputs_json,
                 "model_version": latest.model_version,
@@ -157,19 +156,9 @@ def get_quote(
             if latest
             else None
         ),
-        pricebook_compliance_summary=evaluate_pricebook_compliance(db=db, quote=quote),
-        contract_pricing_summary=evaluate_contract_pricing(db=db, quote=quote),
-        market_comparison_summary=(
-            {
-                "market_comparison_summary": market_summary.market_comparison_summary,
-                "value_positioning_label": market_summary.value_positioning_label,
-                "recommended_strategy": market_summary.recommended_strategy,
-                "value_score": market_summary.value_score,
-                "competitor_count": market_summary.competitor_count,
-            }
-            if market_summary
-            else None
-        ),
+        pricebook_compliance_summary=policy_result["pricebook_compliance_summary"],
+        contract_pricing_summary=policy_result["contract_pricing_summary"],
+        market_comparison_summary=policy_result["market_comparison_summary"],
         created_at=quote.created_at,
         updated_at=quote.updated_at,
     )
@@ -242,7 +231,7 @@ def _snapshot_to_response(snapshot: QuoteFinanceSnapshot) -> QuoteFinanceSnapsho
         net_margin_amount=float(snapshot.net_margin_amount),
         net_margin_percent=float(snapshot.net_margin_percent),
         leakage_amount=float(snapshot.leakage_amount),
-        leakage_reasons_json=list(snapshot.leakage_reasons_json or []),
+        leakage_reasons_json=snapshot.leakage_reasons_json,
         leakage_flags_json=snapshot.leakage_flags_json,
         rebate_summary=snapshot.leakage_flags_json.get("rebate_summary"),
         contract_pricing_summary=snapshot.leakage_flags_json.get("contract_summary"),
@@ -342,10 +331,14 @@ def negotiation_assistant(
         context=context,
         request_id=getattr(request.state, "request_id", "negotiation-assistant"),
     )
+    settings = get_settings()
     log_model_run(
         db=db,
         run_type="negotiation_assistant",
-        model_name="foundry_negotiation_assistant",
+        model_name="negotiation_assistant",
+        model_version=settings.active_ai_model_name,
+        model_provider=settings.active_ai_provider,
+        fallback_used=settings.active_ai_provider == "deterministic_local",
         status="completed",
         request_id=getattr(request.state, "request_id", "negotiation-assistant"),
         meta_json={"ladder_steps": len(output.get("concession_ladder", []))},
@@ -416,3 +409,30 @@ def request_approval(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return {"approval_id": str(approval.id), "status": approval.status.value}
+
+
+@router.post("/{quote_id}/save-draft")
+def save_quote_draft(
+    quote_id: str,
+    payload: SaveQuoteDraftRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(RoleEnum.sales, RoleEnum.admin)),
+) -> dict:
+    quote = db.scalar(select(Quote).where(Quote.id == uuid.UUID(quote_id)))
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+    if user.role == RoleEnum.sales and quote.created_by_user_id != user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    try:
+        updated = pricing_service.save_draft(
+            db=db,
+            quote_id=quote_id,
+            actor_user_id=str(user.id),
+            requested_price=payload.requested_price,
+            strategy_mode=payload.strategy_mode,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {"id": str(updated.id), "status": updated.status.value}

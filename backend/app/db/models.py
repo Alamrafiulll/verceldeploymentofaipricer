@@ -234,12 +234,19 @@ class PolicyDocument(Base):
         back_populates="uploaded_policy_documents",
         foreign_keys=[uploaded_by_user_id],
     )
+    source_uploaded_file: Mapped["UploadedFile | None"] = relationship(foreign_keys=[source_uploaded_file_id])
+    reviewed_by: Mapped["User | None"] = relationship(foreign_keys=[reviewed_by_user_id])
     clauses: Mapped[list["PolicyClause"]] = relationship(
         back_populates="policy_document", cascade="all, delete-orphan"
     )
     price_books: Mapped[list["PriceBook"]] = relationship(back_populates="source_document")
     campaigns: Mapped[list["Campaign"]] = relationship(back_populates="source_document")
-    rebate_programs: Mapped[list["RebateProgram"]] = relationship(back_populates="source_document")
+
+    @property
+    def review_status(self) -> str:
+        if self.status == PolicyDocumentStatus.draft:
+            return "needs_review"
+        return self.status.value
 
     @property
     def clause_count(self) -> int:
@@ -253,26 +260,16 @@ class PolicyDocument(Base):
         return round(sum(float(clause.confidence) for clause in clauses) / len(clauses), 4)
 
     @property
-    def review_status(self) -> str:
-        if self.status == PolicyDocumentStatus.active:
-            return "active"
-        if self.status == PolicyDocumentStatus.archived:
-            return "archived"
-        if self.clause_count > 0:
-            return "needs_review"
-        return "draft"
-
-    @property
     def policy_source_reference(self) -> str:
         return f"POL-{str(self.id).split('-')[0].upper()}"
 
     @property
     def next_step(self) -> str:
+        if self.status == PolicyDocumentStatus.draft:
+            return "Review extracted clauses and activate or archive the policy."
         if self.status == PolicyDocumentStatus.active:
-            return "This policy is active and can be used for pricing governance."
-        if self.status == PolicyDocumentStatus.archived:
-            return "This policy is archived. Reactivate only after review of the source document."
-        return "Review the extracted clauses, correct them if needed, then activate the policy."
+            return "Policy is active and available for pricing decisions."
+        return "Policy is archived for audit history."
 
 
 class PolicyClause(Base):
@@ -290,11 +287,8 @@ class PolicyClause(Base):
     policy_document: Mapped["PolicyDocument"] = relationship(back_populates="clauses")
 
     @property
-    def policy_source_reference(self) -> str:
-        return (
-            f"POL-{str(self.policy_document_id).split('-')[0].upper()}-"
-            f"CLA-{str(self.id).split('-')[0].upper()}"
-        )
+    def policy_source_reference(self) -> str | None:
+        return self.policy_document.policy_source_reference if self.policy_document else None
 
 
 class PriceBook(Base):
@@ -409,6 +403,9 @@ class Contract(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
     customer: Mapped["Customer"] = relationship()
+    source_uploaded_file: Mapped["UploadedFile | None"] = relationship(
+        foreign_keys=[source_uploaded_file_id]
+    )
     lines: Mapped[list["ContractLine"]] = relationship(
         back_populates="contract", cascade="all, delete-orphan"
     )
@@ -458,8 +455,6 @@ class RebateProgram(Base):
         ForeignKey("policy_documents.id", ondelete="SET NULL"), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
-
-    source_document: Mapped["PolicyDocument | None"] = relationship(back_populates="rebate_programs")
 
 
 class FreightAndFeesPolicy(Base):
@@ -530,6 +525,51 @@ class Product(Base):
     list_price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     unit_cost: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
+class CompetitorProduct(Base):
+    __tablename__ = "competitor_products"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    competitor_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    product_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    category: Mapped[str] = mapped_column(String(120), nullable=False)
+    price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(16), nullable=False, default="RM")
+    features_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    source_uploaded_file_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("uploaded_files.id", ondelete="SET NULL"), nullable=True
+    )
+    matched_product_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("products.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+    matched_product: Mapped["Product | None"] = relationship()
+    source_uploaded_file: Mapped["UploadedFile | None"] = relationship()
+
+
+class ProductValueProfile(Base):
+    __tablename__ = "product_value_profiles"
+    __table_args__ = (UniqueConstraint("product_id", name="uq_product_value_profiles_product_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("products.id", ondelete="CASCADE"), nullable=False
+    )
+    value_score: Mapped[float | None] = mapped_column(Numeric(6, 2), nullable=True)
+    positioning_label: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    price_band: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    competitor_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    avg_competitor_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    price_gap_percent: Mapped[float | None] = mapped_column(Numeric(6, 2), nullable=True)
+    recommended_strategy: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    analysis_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=now_utc, onupdate=now_utc
+    )
+
+    product: Mapped["Product"] = relationship()
 
 
 class Inventory(Base):
@@ -646,7 +686,7 @@ class Recommendation(Base):
     )
     model_version: Mapped[str] = mapped_column(String(100), nullable=False)
     feature_schema_version: Mapped[str] = mapped_column(String(100), nullable=False)
-    foundry_outputs_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+    xgb_outputs_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     optimizer_outputs_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     gpt_outputs_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
@@ -691,6 +731,7 @@ class AIRecommendation(Base):
 
     quote: Mapped["Quote | None"] = relationship(back_populates="ai_recommendations")
     product: Mapped["Product"] = relationship()
+    finance_snapshot: Mapped["QuoteFinanceSnapshot | None"] = relationship()
     approved_by: Mapped["User | None"] = relationship()
 
 
@@ -747,9 +788,9 @@ class ModelRun(Base):
     model_name: Mapped[str] = mapped_column(String(120), nullable=False)
     model_version: Mapped[str | None] = mapped_column(String(120), nullable=True)
     model_provider: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    fallback_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     request_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
     status: Mapped[str] = mapped_column(String(40), nullable=False)
-    fallback_used: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     latency_ms: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)
     input_hash: Mapped[str | None] = mapped_column(String(128), nullable=True)
     related_quote_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -807,17 +848,10 @@ class UploadedFile(Base):
     file_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     file_size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
     source_uri: Mapped[str | None] = mapped_column(String(1024), nullable=True)
-    status: Mapped[UploadStatus] = mapped_column(
-        SAEnum(UploadStatus), nullable=False, default=UploadStatus.draft
-    )
-    meta_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     extraction_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     extracted_entities_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     linked_policy_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("policy_documents.id", ondelete="SET NULL"), nullable=True
-    )
-    linked_campaign_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True
     )
     linked_pricebook_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("price_books.id", ondelete="SET NULL"), nullable=True
@@ -825,57 +859,18 @@ class UploadedFile(Base):
     linked_contract_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True
     )
-    linked_rebate_program_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("rebate_programs.id", ondelete="SET NULL"), nullable=True
+    status: Mapped[UploadStatus] = mapped_column(
+        SAEnum(UploadStatus), nullable=False, default=UploadStatus.active
     )
+    meta_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     validation_issues: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     review_status: Mapped[str | None] = mapped_column(String(40), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
     uploaded_by: Mapped["User | None"] = relationship(back_populates="uploaded_files")
-
-
-class CompetitorProduct(Base):
-    __tablename__ = "competitor_products"
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    competitor_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    product_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    category: Mapped[str] = mapped_column(String(120), nullable=False)
-    price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
-    currency: Mapped[str] = mapped_column(String(16), nullable=False, default="RM")
-    features_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    source_uploaded_file_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("uploaded_files.id", ondelete="SET NULL"), nullable=True
-    )
-    matched_product_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("products.id", ondelete="SET NULL"), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
-
-    matched_product: Mapped["Product | None"] = relationship()
-
-
-class ProductValueProfile(Base):
-    __tablename__ = "product_value_profiles"
-
-    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    product_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("products.id", ondelete="CASCADE"), nullable=False, unique=True
-    )
-    value_score: Mapped[float | None] = mapped_column(Numeric(6, 2), nullable=True)
-    positioning_label: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    price_band: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    competitor_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    avg_competitor_price: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
-    price_gap_percent: Mapped[float | None] = mapped_column(Numeric(6, 2), nullable=True)
-    recommended_strategy: Mapped[str | None] = mapped_column(String(80), nullable=True)
-    analysis_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=now_utc, onupdate=now_utc
-    )
-
-    product: Mapped["Product"] = relationship()
+    linked_policy: Mapped["PolicyDocument | None"] = relationship(foreign_keys=[linked_policy_id])
+    linked_pricebook: Mapped["PriceBook | None"] = relationship(foreign_keys=[linked_pricebook_id])
+    linked_contract: Mapped["Contract | None"] = relationship(foreign_keys=[linked_contract_id])
 
 
 class DocumentExtractionReview(Base):
@@ -894,3 +889,6 @@ class DocumentExtractionReview(Base):
     review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    uploaded_file: Mapped["UploadedFile"] = relationship()
+    reviewer: Mapped["User | None"] = relationship()

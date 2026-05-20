@@ -7,6 +7,7 @@ Create Date: 2026-02-23 00:02:00
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "20260223_0002"
@@ -14,11 +15,12 @@ down_revision = "20260219_0001"
 branch_labels = None
 depends_on = None
 
-user_approval_status_enum = sa.Enum(
+user_approval_status_enum = postgresql.ENUM(
     "pending",
     "approved",
     "rejected",
     name="userapprovalstatus",
+    create_type=False,
 )
 
 
@@ -46,18 +48,15 @@ def upgrade() -> None:
         ["id"],
         ondelete="SET NULL",
     )
-    # Remove server default after population if needed, but here we just set it initially
-    with op.batch_alter_table("users") as batch_op:
-        batch_op.alter_column("approval_status", server_default=None)
+    op.alter_column("users", "approval_status", server_default=None)
 
 
 def downgrade() -> None:
     op.drop_constraint("fk_users_approved_by_user_id", "users", type_="foreignkey")
-    with op.batch_alter_table("users") as batch_op:
-        batch_op.drop_column("approval_reason")
-        batch_op.drop_column("approved_at")
-        batch_op.drop_column("approved_by_user_id")
-        batch_op.drop_column("approval_status")
+    op.drop_column("users", "approval_reason")
+    op.drop_column("users", "approved_at")
+    op.drop_column("users", "approved_by_user_id")
+    op.drop_column("users", "approval_status")
 
     bind = op.get_bind()
     user_approval_status_enum.drop(bind, checkfirst=True)

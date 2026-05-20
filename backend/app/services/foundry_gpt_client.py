@@ -9,6 +9,12 @@ from pydantic import BaseModel, Field, ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.config import get_settings
+from app.services.openai_client import (
+    OpenAIResponseError,
+    OpenAIResponsesClient,
+    extract_text_from_model_response,
+    parse_json_text,
+)
 
 logger = logging.getLogger("app")
 
@@ -24,6 +30,7 @@ class ExplanationResponse(BaseModel):
 class FoundryClient:
     def __init__(self) -> None:
         self.settings = get_settings()
+        self.openai_client = OpenAIResponsesClient(self.settings)
 
     @staticmethod
     def _is_azure_openai_endpoint(endpoint_url: str) -> bool:
@@ -65,6 +72,43 @@ class FoundryClient:
             "approval_justification_suggestion": "Requested price improves strategic account retention while preserving floor margin.",
             "executive_summary": "Recommendation follows policy and maximizes expected profit in the allowed band.",
         }
+
+    @staticmethod
+    def _explanation_schema() -> dict[str, Any]:
+        return {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "short_reason": {"type": "string"},
+                "top_drivers": {"type": "array", "items": {"type": "string"}},
+                "negotiation_tips": {"type": "array", "items": {"type": "string"}},
+                "approval_justification_suggestion": {"type": ["string", "null"]},
+                "executive_summary": {"type": ["string", "null"]},
+            },
+            "required": [
+                "short_reason",
+                "top_drivers",
+                "negotiation_tips",
+                "approval_justification_suggestion",
+                "executive_summary",
+            ],
+        }
+
+    def _call_openai(self, payload: dict[str, Any], request_id: str) -> dict[str, Any]:
+        system_prompt = (
+            "You are a pricing strategist assistant. Do not change any numbers. "
+            "Return JSON only with keys: short_reason, top_drivers, negotiation_tips, "
+            "approval_justification_suggestion, executive_summary."
+        )
+        return self.openai_client.create_json(
+            instructions=system_prompt,
+            payload=payload,
+            schema_name="pricing_explanation",
+            schema=self._explanation_schema(),
+            request_id=request_id,
+            temperature=0.1,
+            timeout=12.0,
+        )
 
     @retry(wait=wait_exponential(multiplier=0.5, min=1, max=4), stop=stop_after_attempt(3), reraise=True)
     def _call_foundry(self, payload: dict[str, Any], request_id: str) -> dict[str, Any]:
@@ -109,66 +153,43 @@ class FoundryClient:
 
     @staticmethod
     def _extract_text_from_response(data: dict[str, Any]) -> str | None:
-        if isinstance(data.get("output_text"), str):
-            return data["output_text"]
-
-        if isinstance(data.get("output"), list):
-            text_parts: list[str] = []
-            for block in data["output"]:
-                if not isinstance(block, dict):
-                    continue
-                if isinstance(block.get("text"), str):
-                    text_parts.append(block["text"])
-                content_blocks = block.get("content")
-                if isinstance(content_blocks, list):
-                    for item in content_blocks:
-                        if not isinstance(item, dict):
-                            continue
-                        if isinstance(item.get("text"), str):
-                            text_parts.append(item["text"])
-            if text_parts:
-                return "".join(text_parts)
-
-        return None
+        return extract_text_from_model_response(data)
 
     def _parse_response(self, data: dict[str, Any]) -> dict[str, Any]:
         content: str | None = self._extract_text_from_response(data)
-        if isinstance(data.get("choices"), list) and data["choices"]:
-            message = data["choices"][0].get("message", {})
-            raw_content = message.get("content")
-            if isinstance(raw_content, str):
-                content = raw_content
-            elif isinstance(raw_content, list):
-                text_parts = []
-                for block in raw_content:
-                    if isinstance(block, dict) and isinstance(block.get("text"), str):
-                        text_parts.append(block["text"])
-                content = "".join(text_parts) if text_parts else None
-
-        if not content and "content" in data:
-            raw_content = data["content"]
-            if isinstance(raw_content, str):
-                content = raw_content
-            elif isinstance(raw_content, list):
-                text_parts = []
-                for block in raw_content:
-                    if isinstance(block, dict) and isinstance(block.get("text"), str):
-                        text_parts.append(block["text"])
-                content = "".join(text_parts) if text_parts else None
 
         if not content:
             raise ValueError("Missing content from Foundry response")
 
         try:
-            parsed = json.loads(content)
-        except json.JSONDecodeError as exc:
+            parsed = parse_json_text(content)
+        except OpenAIResponseError as exc:
             raise ValueError("Foundry response was not valid JSON") from exc
 
         validated = ExplanationResponse.model_validate(parsed)
         return validated.model_dump()
 
     def generate_explanation(self, payload: dict[str, Any], request_id: str) -> dict[str, Any]:
-        if not self.settings.foundry_endpoint_url or not self.settings.foundry_api_key:
+        if self.openai_client.enabled:
+            try:
+                parsed = self._call_openai(payload=payload, request_id=request_id)
+                validated = ExplanationResponse.model_validate(parsed)
+                return validated.model_dump()
+            except (httpx.HTTPError, ValidationError, OpenAIResponseError) as exc:
+                logger.exception(
+                    {
+                        "event": "openai_explanation_fallback",
+                        "request_id": request_id,
+                        "error": str(exc),
+                    }
+                )
+                return self._fallback(payload)
+
+        if (
+            not self.settings.legacy_foundry_enabled
+            or not self.settings.foundry_endpoint_url
+            or not self.settings.foundry_api_key
+        ):
             return self._fallback(payload)
 
         try:

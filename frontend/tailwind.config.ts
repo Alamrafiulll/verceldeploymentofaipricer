@@ -1,6 +1,7 @@
 import type { Config } from 'tailwindcss';
 
 const config: Config = {
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
@@ -27,6 +28,8 @@ const config: Config = {
       boxShadow: {
         card: '0 10px 28px rgba(9, 28, 51, 0.12)',
         'sidebar': '4px 0 24px rgba(38, 34, 97, 0.15)',
+        'premium-glow': '0 0 25px rgba(99, 102, 241, 0.15)',
+        'premium-glow-lg': '0 0 35px rgba(99, 102, 241, 0.25)',
       },
     },
   },

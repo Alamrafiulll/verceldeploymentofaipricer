@@ -1,5 +1,8 @@
 import { useState, useCallback, type DragEvent, type ChangeEvent } from 'react';
+import { AlertCircle, Download, FileSpreadsheet, UploadCloud } from 'lucide-react';
+
 import api from '../lib/api';
+import { downloadProductImportTemplate } from '../lib/downloads';
 
 interface ImportResult {
   imported: number;
@@ -22,7 +25,8 @@ export default function BulkImportPanel({ onSuccess }: BulkImportPanelProps) {
     async (file: File) => {
       const ext = file.name.split('.').pop()?.toLowerCase();
       if (!ext || !['xlsx', 'csv'].includes(ext)) {
-        setError('Only .xlsx and .csv files are supported');
+        setError('Only .xlsx and .csv files are supported for product import.');
+        setResult(null);
         return;
       }
 
@@ -43,7 +47,7 @@ export default function BulkImportPanel({ onSuccess }: BulkImportPanelProps) {
         }
       } catch (err: any) {
         const detail = err?.response?.data?.detail;
-        setError(typeof detail === 'string' ? detail : 'Upload failed');
+        setError(typeof detail === 'string' ? detail : 'Upload failed. Check the template and try again.');
       } finally {
         setUploading(false);
       }
@@ -71,7 +75,27 @@ export default function BulkImportPanel({ onSuccess }: BulkImportPanelProps) {
   );
 
   return (
-    <div className="mb-6">
+    <section className="mb-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-slate-500" aria-hidden="true" />
+            <h2 className="text-base font-semibold text-slate-950">Bulk Product Import</h2>
+          </div>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            Import products from a clean CSV or Excel file. Duplicate SKUs are skipped and row errors are returned.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={downloadProductImportTemplate}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          <Download className="h-4 w-4" aria-hidden="true" />
+          Template
+        </button>
+      </div>
+
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -79,76 +103,67 @@ export default function BulkImportPanel({ onSuccess }: BulkImportPanelProps) {
         }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
-        className={`relative rounded-xl border-2 border-dashed p-6 text-center transition-all ${
-          dragOver
-            ? 'border-emerald-500 bg-emerald-50'
-            : 'border-slate-300 bg-white hover:border-slate-400'
+        className={`relative rounded-lg border border-dashed p-6 text-center transition-all ${
+          dragOver ? 'border-slate-500 bg-slate-100' : 'border-slate-300 bg-slate-50 hover:border-slate-400'
         }`}
       >
         {uploading ? (
           <div className="flex items-center justify-center gap-3">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600" />
-            <span className="text-sm text-slate-600">Importing products...</span>
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-slate-300 border-t-slate-800" />
+            <span className="text-sm font-medium text-slate-700">Importing products...</span>
           </div>
         ) : (
           <>
-            <div className="mb-2 text-3xl">📁</div>
-            <p className="text-sm font-medium text-slate-700">
-              Drag & drop Excel (.xlsx) or CSV file here
+            <UploadCloud className="mx-auto h-9 w-9 text-slate-500" aria-hidden="true" />
+            <p className="mt-3 text-sm font-semibold text-slate-800">Drop Excel or CSV file here</p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Required columns: <code>sku</code>, <code>name</code>, <code>category</code>, <code>unit_cost</code>,{' '}
+              <code>list_price</code>
             </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Columns required: <code>sku</code>, <code>name</code>, <code>category</code>,{' '}
-              <code>unit_cost</code>, <code>list_price</code>
-            </p>
-            <label className="mt-3 inline-block cursor-pointer rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200">
-              Browse files
-              <input
-                type="file"
-                accept=".xlsx,.csv"
-                className="hidden"
-                onChange={onFileSelect}
-              />
+            <label className="mt-4 inline-flex cursor-pointer items-center justify-center rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">
+              Browse file
+              <input type="file" accept=".xlsx,.csv" className="hidden" onChange={onFileSelect} />
             </label>
           </>
         )}
       </div>
 
       {error && (
-        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>{error}</span>
         </div>
       )}
 
       {result && (
-        <div className="mt-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex gap-6 text-sm">
-            <div>
-              <span className="font-semibold text-emerald-700">{result.imported}</span>{' '}
-              <span className="text-slate-500">imported</span>
-            </div>
-            <div>
-              <span className="font-semibold text-amber-600">{result.skipped}</span>{' '}
-              <span className="text-slate-500">skipped (duplicates)</span>
-            </div>
-            {result.errors.length > 0 && (
-              <div>
-                <span className="font-semibold text-red-600">{result.errors.length}</span>{' '}
-                <span className="text-slate-500">errors</span>
-              </div>
-            )}
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="grid gap-3 text-sm sm:grid-cols-4">
+            <Metric label="Imported" value={result.imported} className="text-emerald-700" />
+            <Metric label="Skipped" value={result.skipped} className="text-amber-700" />
+            <Metric label="Errors" value={result.errors.length} className="text-rose-700" />
+            <Metric label="Rows" value={result.total_rows} className="text-slate-900" />
           </div>
           {result.errors.length > 0 && (
-            <ul className="mt-2 list-inside list-disc text-xs text-red-600">
-              {result.errors.slice(0, 5).map((e, i) => (
-                <li key={i}>
-                  Row {e.row}: {e.error}
+            <ul className="mt-3 space-y-1 text-xs text-rose-700">
+              {result.errors.slice(0, 5).map((item) => (
+                <li key={`${item.row}-${item.error}`}>
+                  Row {item.row}: {item.error}
                 </li>
               ))}
-              {result.errors.length > 5 && <li>... and {result.errors.length - 5} more</li>}
+              {result.errors.length > 5 && <li>And {result.errors.length - 5} more errors.</li>}
             </ul>
           )}
         </div>
       )}
+    </section>
+  );
+}
+
+function Metric({ label, value, className }: { label: string; value: number; className: string }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+      <p className={`mt-1 text-xl font-semibold ${className}`}>{value}</p>
     </div>
   );
 }

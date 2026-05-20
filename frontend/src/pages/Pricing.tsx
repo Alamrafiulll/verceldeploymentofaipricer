@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Calculator, Sparkles, SlidersHorizontal } from 'lucide-react';
 
 import RecommendationCard from '../components/RecommendationCard';
-import Spinner from '../components/Spinner';
+import { AlertBanner, SectionHeader, SummaryCard } from '../components/ui';
 import {
   getProducts,
   recommendPrice,
@@ -9,18 +10,31 @@ import {
   type SandboxRecommendation,
 } from '../services/api';
 
-const CHANNELS = [
-  { value: 'direct', label: '🏪 Direct Sales', desc: 'Sell directly to end customers' },
-  { value: 'distributor', label: '🚚 Distributor', desc: 'Wholesale to distributors (8% off)' },
-  { value: 'project', label: '🏗️ Project / Bulk', desc: 'Project-based pricing (12% off)' },
-];
+const money = new Intl.NumberFormat('en-MY', {
+  style: 'currency',
+  currency: 'MYR',
+  maximumFractionDigits: 2,
+});
 
 export default function Pricing() {
   const [products, setProducts] = useState<SandboxProduct[]>([]);
-  const [productId, setProductId] = useState('');
-  const [discount, setDiscount] = useState(5);
-  const [channel, setChannel] = useState('direct');
-  const [result, setResult] = useState<SandboxRecommendation | null>(null);
+  const [productId, setProductId] = useState(() => localStorage.getItem('pricing_lab_product_id') ?? '');
+  const [discount, setDiscount] = useState(() => {
+    const saved = localStorage.getItem('pricing_lab_discount');
+    return saved ? Number(saved) : 5;
+  });
+  const [channel, setChannel] = useState(() => localStorage.getItem('pricing_lab_channel') ?? 'direct');
+  const [result, setResult] = useState<SandboxRecommendation | null>(() => {
+    const saved = localStorage.getItem('pricing_lab_result');
+    if (saved) {
+      try {
+        return JSON.parse(saved) as SandboxRecommendation;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +44,12 @@ export default function Pricing() {
         const res = await getProducts();
         setProducts(res.data);
         if (res.data.length > 0) {
-          setProductId(res.data[0].id);
+          const savedProductId = localStorage.getItem('pricing_lab_product_id');
+          if (savedProductId && res.data.some((p) => p.id === savedProductId)) {
+            setProductId(savedProductId);
+          } else {
+            setProductId(res.data[0].id);
+          }
         }
       } catch {
         setProducts([]);
@@ -38,6 +57,46 @@ export default function Pricing() {
     };
     void loadProducts();
   }, []);
+
+  useEffect(() => {
+    if (productId) {
+      localStorage.setItem('pricing_lab_product_id', productId);
+    }
+  }, [productId]);
+
+  useEffect(() => {
+    localStorage.setItem('pricing_lab_discount', String(discount));
+  }, [discount]);
+
+  useEffect(() => {
+    localStorage.setItem('pricing_lab_channel', channel);
+  }, [channel]);
+
+  useEffect(() => {
+    if (result) {
+      localStorage.setItem('pricing_lab_result', JSON.stringify(result));
+    } else {
+      localStorage.removeItem('pricing_lab_result');
+    }
+  }, [result]);
+
+  const resetLab = () => {
+    localStorage.removeItem('pricing_lab_product_id');
+    localStorage.removeItem('pricing_lab_discount');
+    localStorage.removeItem('pricing_lab_channel');
+    localStorage.removeItem('pricing_lab_result');
+    setDiscount(5);
+    setChannel('direct');
+    setResult(null);
+    if (products.length > 0) {
+      setProductId(products[0].id);
+    }
+  };
+
+  const selectedProduct = useMemo(
+    () => products.find((product) => product.id === productId),
+    [productId, products],
+  );
 
   const runAI = async () => {
     const id = productId.trim();
@@ -60,133 +119,109 @@ export default function Pricing() {
     }
   };
 
-  const selectedProduct = products.find((p) => p.id === productId);
-
   return (
-    <div className="p-1">
-
-      <h2 className="mb-4 text-2xl font-bold text-slate-900">AI Price Recommendation</h2>
-
-      {/* Channel Selector */}
-      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
-        <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-400">
-          Select Pricing Channel
-        </p>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          {CHANNELS.map((ch) => (
-            <button
-              key={ch.value}
-              type="button"
-              className={`rounded-lg border-2 px-4 py-3 text-left transition-all ${
-                channel === ch.value
-                  ? 'border-emerald-500 bg-emerald-50 shadow-sm'
-                  : 'border-slate-200 bg-white hover:border-slate-300'
-              }`}
-              onClick={() => setChannel(ch.value)}
-            >
-              <span className="text-sm font-semibold text-slate-800">{ch.label}</span>
-              <p className="mt-0.5 text-[11px] text-slate-500">{ch.desc}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Product & Discount Input */}
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-card">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr,180px,140px]">
-          <select
-            className="rounded-lg border border-slate-300 px-3 py-2"
-            value={productId}
-            onChange={(e) => setProductId(e.target.value)}
-            disabled={products.length === 0}
-          >
-            {products.length === 0 ? (
-              <option value="">No products found</option>
-            ) : (
-              products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.sku} - {p.name} (RM {p.current_price.toFixed(2)})
-                </option>
-              ))
-            )}
-          </select>
-          <input
-            type="number"
-            placeholder="Discount %"
-            className="rounded-lg border border-slate-300 px-3 py-2"
-            min={0}
-            max={100}
-            value={discount}
-            onChange={(e) => setDiscount(Number(e.target.value))}
-          />
+    <div className="space-y-6">
+      <SectionHeader
+        kicker="Pricing lab"
+        icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
+        title="AI Price Recommendation"
+        subtitle="Run a quick product-level recommendation before creating a full customer quote."
+        action={
           <button
             type="button"
-            className="flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white disabled:opacity-60"
+            onClick={resetLab}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            Reset Lab
+          </button>
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <SummaryCard title="Products Loaded" value={products.length} subtitle="Available sandbox products" />
+        <SummaryCard
+          title="Selected List Price"
+          value={selectedProduct ? money.format(selectedProduct.current_price) : '-'}
+          subtitle={selectedProduct?.sku ?? 'Select a product'}
+          variant="info"
+        />
+        <SummaryCard
+          title="Test Discount"
+          value={`${discount}%`}
+          subtitle={`${channel.replace(/_/g, ' ')} channel`}
+          variant={discount >= 20 ? 'warning' : 'success'}
+        />
+      </div>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <SlidersHorizontal className="h-4 w-4 text-slate-500" aria-hidden="true" />
+          <h2 className="text-base font-semibold text-slate-950">Recommendation Inputs</h2>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.4fr)_180px_180px_150px]">
+          <label className="space-y-2 text-sm">
+            <span className="font-semibold text-slate-700">Product</span>
+            <select
+              className="input"
+              value={productId}
+              onChange={(e) => setProductId(e.target.value)}
+              disabled={products.length === 0}
+            >
+              {products.length === 0 ? (
+                <option value="">No products found</option>
+              ) : (
+                products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.sku} - {product.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+
+          <label className="space-y-2 text-sm">
+            <span className="font-semibold text-slate-700">Discount %</span>
+            <input
+              type="number"
+              className="input"
+              min={0}
+              max={100}
+              value={discount}
+              onChange={(e) => setDiscount(Number(e.target.value))}
+            />
+          </label>
+
+          <label className="space-y-2 text-sm">
+            <span className="font-semibold text-slate-700">Channel</span>
+            <select className="input capitalize" value={channel} onChange={(e) => setChannel(e.target.value)}>
+              <option value="direct">Direct</option>
+              <option value="distributor">Distributor</option>
+              <option value="project">Project</option>
+            </select>
+          </label>
+
+          <button
+            type="button"
+            className="mt-auto inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
             onClick={runAI}
             disabled={loading || products.length === 0 || !productId}
           >
-            {loading ? <Spinner size="sm" color="light" /> : null}
-            {loading ? 'Running...' : '🤖 Run AI'}
+            <Calculator className="h-4 w-4" aria-hidden="true" />
+            {loading ? 'Running' : 'Run AI'}
           </button>
         </div>
-        <div className="mt-2 flex items-center gap-4 text-xs text-slate-500">
-          <span>Channel: <strong className="text-slate-700">{CHANNELS.find(c => c.value === channel)?.label}</strong></span>
-          {selectedProduct && (
-            <span>
-              Cost: <strong className="text-slate-700">RM {selectedProduct.base_cost.toFixed(2)}</strong>
-              {' | '}
-              List: <strong className="text-slate-700">RM {selectedProduct.current_price.toFixed(2)}</strong>
-            </span>
-          )}
-        </div>
-        {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
-      </div>
 
-      {/* Margin Simulator (discount slider) */}
-      {selectedProduct && (
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-card">
-          <h3 className="mb-3 text-sm font-semibold text-slate-700">📊 Margin Simulator</h3>
-          <input
-            type="range"
-            min={0}
-            max={35}
-            step={0.5}
-            value={discount}
-            onChange={(e) => setDiscount(Number(e.target.value))}
-            className="w-full accent-emerald-600"
-          />
-          <div className="mt-2 grid grid-cols-3 gap-3 text-center text-sm">
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">Discount</p>
-              <p className="text-lg font-bold text-slate-800">{discount.toFixed(1)}%</p>
-            </div>
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">Estimated Price</p>
-              <p className="text-lg font-bold text-emerald-700">
-                RM {(selectedProduct.current_price * (1 - discount / 100)).toFixed(2)}
-              </p>
-            </div>
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs text-slate-500">Est. Margin</p>
-              <p className={`text-lg font-bold ${
-                ((selectedProduct.current_price * (1 - discount / 100) - selectedProduct.base_cost) /
-                  (selectedProduct.current_price * (1 - discount / 100))) *
-                  100 <
-                10
-                  ? 'text-red-600'
-                  : 'text-emerald-700'
-              }`}>
-                {(
-                  ((selectedProduct.current_price * (1 - discount / 100) - selectedProduct.base_cost) /
-                    (selectedProduct.current_price * (1 - discount / 100))) *
-                  100
-                ).toFixed(1)}
-                %
-              </p>
-            </div>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          This lab is for quick product scenarios. Use New Quote when customer tier, inventory, policy, and approval
+          governance must be included.
+        </p>
+        {error && (
+          <div className="mt-4">
+            <AlertBanner variant="danger">{error}</AlertBanner>
           </div>
-        </div>
-      )}
+        )}
+      </section>
 
       <RecommendationCard result={result} />
     </div>

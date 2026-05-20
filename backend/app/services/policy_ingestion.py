@@ -31,6 +31,7 @@ from app.db.models import (
 from app.schemas.policy import PolicyReviewUpdateRequest, PolicyUploadRequest
 from app.services.audit_logger import log_audit
 from app.services.model_run_logger import log_model_run
+from app.services.openai_client import OpenAIResponseError, OpenAIResponsesClient, extract_text_from_model_response
 
 logger = logging.getLogger("app")
 
@@ -114,31 +115,75 @@ def validate_clause_schema(data: dict) -> list[ExtractedClause]:
 
 
 def _extract_text_from_foundry_response(data: dict) -> str | None:
-    if isinstance(data.get("output_text"), str):
-        return data["output_text"]
-    if isinstance(data.get("output"), list):
-        text_parts: list[str] = []
-        for block in data["output"]:
-            if not isinstance(block, dict):
-                continue
-            content = block.get("content")
-            if isinstance(content, list):
-                for item in content:
-                    if isinstance(item, dict) and isinstance(item.get("text"), str):
-                        text_parts.append(item["text"])
-        if text_parts:
-            return "".join(text_parts)
-    if isinstance(data.get("choices"), list) and data["choices"]:
-        message = data["choices"][0].get("message", {})
-        content = message.get("content")
-        if isinstance(content, str):
-            return content
-    return None
+    return extract_text_from_model_response(data)
 
 
 def _is_azure_openai_endpoint(endpoint_url: str) -> bool:
     host = urlparse(endpoint_url).netloc.lower()
     return "openai.azure.com" in host
+
+
+def _clause_response_schema() -> dict:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "clauses": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "clause_type": {"type": "string", "enum": [item.value for item in PolicyClauseType]},
+                        "raw_text": {"type": "string"},
+                        "structured_json": {"type": "object"},
+                        "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    },
+                    "required": ["clause_type", "raw_text", "structured_json", "confidence"],
+                },
+            }
+        },
+        "required": ["clauses"],
+    }
+
+
+@retry(wait=wait_exponential(multiplier=0.5, min=1, max=4), stop=stop_after_attempt(2), reraise=True)
+def _call_openai_clause_extraction(
+    text: str,
+    doc_type: PolicyDocumentType,
+    request_id: str,
+) -> list[ExtractedClause] | None:
+    settings = get_settings()
+    openai_client = OpenAIResponsesClient(settings)
+    if not openai_client.enabled:
+        return None
+
+    schema_hint = {
+        "clauses": [
+            {
+                "clause_type": "eligibility|exclusion|entitlement|pricing|rebate|incentive|payment_terms|returns|exchange|other",
+                "raw_text": "exact snippet",
+                "structured_json": {"key": "value"},
+                "confidence": 0.9,
+            }
+        ]
+    }
+    system_prompt = (
+        "Extract policy clauses. Return JSON only. "
+        f"Schema meaning: {json.dumps(schema_hint, ensure_ascii=True)}. "
+        "Do not include markdown. Do not invent unsupported numbers."
+    )
+    user_payload = {"doc_type": doc_type.value, "text": text[:12000]}
+    parsed = openai_client.create_json(
+        instructions=system_prompt,
+        payload=user_payload,
+        schema_name="policy_clause_extraction",
+        schema=_clause_response_schema(),
+        request_id=request_id,
+        temperature=0.0,
+        timeout=10.0,
+    )
+    return validate_clause_schema(parsed)
 
 
 @retry(wait=wait_exponential(multiplier=0.5, min=1, max=4), stop=stop_after_attempt(2), reraise=True)
@@ -148,7 +193,7 @@ def _call_foundry_clause_extraction(
     request_id: str,
 ) -> list[ExtractedClause] | None:
     settings = get_settings()
-    if not settings.foundry_endpoint_url or not settings.foundry_api_key:
+    if not settings.legacy_foundry_enabled or not settings.foundry_endpoint_url or not settings.foundry_api_key:
         return None
 
     headers = {
@@ -384,6 +429,23 @@ def extract_clauses_from_text(
     doc_type: PolicyDocumentType,
     request_id: str,
 ) -> list[ExtractedClause]:
+    try:
+        from_openai = _call_openai_clause_extraction(
+            text=text,
+            doc_type=doc_type,
+            request_id=request_id,
+        )
+        if from_openai:
+            return from_openai
+    except (httpx.HTTPError, OpenAIResponseError, ValueError, ValidationError) as exc:
+        logger.exception(
+            {
+                "event": "openai_policy_clause_extraction_fallback",
+                "request_id": request_id,
+                "error": str(exc),
+            }
+        )
+
     try:
         from_foundry = _call_foundry_clause_extraction(
             text=text,
@@ -878,8 +940,10 @@ def ingest_policy_document(
     log_model_run(
         db=db,
         run_type="policy_extraction",
-        model_name=settings.foundry_model_name,
-        model_version=settings.foundry_model_name,
+        model_name=settings.active_ai_model_name,
+        model_version=settings.active_ai_model_name,
+        model_provider=settings.active_ai_provider,
+        fallback_used=settings.active_ai_provider == "deterministic_local",
         request_id=request_id,
         status="completed",
         meta_json={"clause_count": len(extracted), "average_confidence": avg_confidence},

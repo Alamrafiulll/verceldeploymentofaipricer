@@ -7,7 +7,7 @@ Create Date: 2026-03-04 00:07:00
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "20260304_0007"
@@ -15,40 +15,37 @@ down_revision = "20260225_0006"
 branch_labels = None
 depends_on = None
 
-user_account_status_enum = sa.Enum(
+user_account_status_enum = postgresql.ENUM(
     "active",
     "inactive",
     name="useraccountstatus",
+    create_type=False,
 )
 
-password_change_request_status_enum = sa.Enum(
+password_change_request_status_enum = postgresql.ENUM(
     "pending",
     "approved",
     "rejected",
     name="passwordchangerequeststatus",
+    create_type=False,
 )
 
 
 def upgrade() -> None:
     bind = op.get_bind()
     user_account_status_enum.create(bind, checkfirst=True)
+    password_change_request_status_enum.create(bind, checkfirst=True)
 
-    # SQLite does not support adding a column with a server default and then dropping the default
-    # in the same way as Postgres, nor does it support standalone enum creation.
-    # We use batch_alter_table to handle the schema changes.
-
-    with op.batch_alter_table("users") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "account_status",
-                user_account_status_enum,
-                nullable=False,
-                server_default="active",
-            )
-        )
-        # In SQLite, we can't easily drop the server default immediately in the same transaction 
-        # without recreating the table, but batch_alter_table handles the recreation.
-        batch_op.alter_column("account_status", server_default=None)
+    op.add_column(
+        "users",
+        sa.Column(
+            "account_status",
+            user_account_status_enum,
+            nullable=False,
+            server_default="active",
+        ),
+    )
+    op.alter_column("users", "account_status", server_default=None)
 
     op.create_table(
         "password_change_requests",
@@ -69,9 +66,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("password_change_requests")
-    
-    with op.batch_alter_table("users") as batch_op:
-        batch_op.drop_column("account_status")
+    op.drop_column("users", "account_status")
 
     bind = op.get_bind()
+    password_change_request_status_enum.drop(bind, checkfirst=True)
     user_account_status_enum.drop(bind, checkfirst=True)
+

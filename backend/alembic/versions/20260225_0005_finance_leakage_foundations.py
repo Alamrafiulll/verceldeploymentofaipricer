@@ -7,6 +7,7 @@ Create Date: 2026-02-25 00:05:00
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "20260225_0005"
@@ -14,15 +15,17 @@ down_revision = "20260225_0004"
 branch_labels = None
 depends_on = None
 
-contract_status_enum = sa.Enum(
+contract_status_enum = postgresql.ENUM(
     "active",
     "inactive",
     name="contractstatus",
+    create_type=False,
 )
 
 
 def upgrade() -> None:
-    # Enum creation skipped
+    bind = op.get_bind()
+    contract_status_enum.create(bind, checkfirst=True)
 
     op.create_table(
         "contracts",
@@ -57,7 +60,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("channel", sa.String(length=100), nullable=True),
-        sa.Column("tier_rates_json", sa.JSON(), nullable=False),
+        sa.Column("tier_rates_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("mdf_percent", sa.Numeric(6, 2), nullable=False),
         sa.Column("effective_start", sa.DateTime(timezone=True), nullable=True),
         sa.Column("effective_end", sa.DateTime(timezone=True), nullable=True),
@@ -94,7 +97,7 @@ def upgrade() -> None:
         sa.Column("gross_margin_amount", sa.Numeric(14, 2), nullable=False),
         sa.Column("net_margin_amount", sa.Numeric(14, 2), nullable=False),
         sa.Column("net_margin_percent", sa.Numeric(6, 2), nullable=False),
-        sa.Column("leakage_flags_json", sa.JSON(), nullable=False),
+        sa.Column("leakage_flags_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["quote_id"], ["quotes.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -109,4 +112,5 @@ def downgrade() -> None:
     op.drop_table("contract_lines")
     op.drop_table("contracts")
 
-    # Enum drop skipped
+    bind = op.get_bind()
+    contract_status_enum.drop(bind, checkfirst=True)

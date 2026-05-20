@@ -11,9 +11,9 @@ function formatLabel(value: string) {
 
 export default function RecommendationPanel({ recommendation }: Props) {
   const zoneStyle = {
-    green: 'border-signal-green/30 bg-signal-green/5',
-    yellow: 'border-signal-yellow/30 bg-signal-yellow/5',
-    red: 'border-signal-red/30 bg-signal-red/5',
+    green: 'border-emerald-500/25 bg-emerald-500/5 shadow-emerald-500/5 shadow-xl',
+    yellow: 'border-amber-500/25 bg-amber-500/5 shadow-amber-500/5 shadow-xl',
+    red: 'border-rose-500/25 bg-rose-500/5 shadow-rose-500/5 shadow-xl',
   }[recommendation.safe_band];
   const marketSummary =
     typeof recommendation.market_comparison_summary?.market_comparison_summary === 'string'
@@ -21,13 +21,15 @@ export default function RecommendationPanel({ recommendation }: Props) {
       : null;
 
   return (
-    <section className={`rounded-2xl border p-5 ${zoneStyle}`}>
+    <section className={`rounded-2xl border p-6 backdrop-blur-md transition-all duration-300 ${zoneStyle}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-display text-xl font-semibold">Recommended Price and Safe Trading Range</h3>
+        <h3 className="font-display text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          Recommended Price and Safe Trading Range
+        </h3>
         <RiskBadge level={recommendation.risk_level} />
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="mt-5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
         <Metric
           label="Recommended Range"
           value={`RM ${recommendation.band_low.toFixed(2)} - RM ${recommendation.band_high.toFixed(2)}`}
@@ -51,7 +53,7 @@ export default function RecommendationPanel({ recommendation }: Props) {
       </div>
 
       {recommendation.value_positioning_label || recommendation.next_best_action || marketSummary ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="mt-4 grid gap-3.5 md:grid-cols-2">
           {recommendation.value_positioning_label ? (
             <Metric
               label="Value Positioning"
@@ -60,18 +62,18 @@ export default function RecommendationPanel({ recommendation }: Props) {
           ) : null}
 
           {recommendation.next_best_action ? (
-            <article className="rounded-lg border border-white/60 bg-white/90 p-3">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Next Best Action</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900">
+            <article className="rounded-xl border border-slate-200/50 dark:border-slate-800/40 bg-slate-500/5 dark:bg-slate-900/40 p-3.5 transition-all duration-300">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Next Best Action</p>
+              <p className="mt-1.5 text-xs font-semibold leading-relaxed text-slate-700 dark:text-slate-300">
                 {recommendation.next_best_action}
               </p>
             </article>
           ) : null}
 
           {marketSummary ? (
-            <article className="rounded-lg border border-white/60 bg-white/90 p-3 md:col-span-2">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Market Comparison</p>
-              <p className="mt-1 text-sm text-slate-800">{marketSummary}</p>
+            <article className="rounded-xl border border-slate-200/50 dark:border-slate-800/40 bg-slate-500/5 dark:bg-slate-900/40 p-3.5 transition-all duration-300 md:col-span-2">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Market Comparison</p>
+              <p className="mt-1.5 text-xs font-semibold leading-relaxed text-slate-700 dark:text-slate-350">{marketSummary}</p>
             </article>
           ) : null}
         </div>
@@ -82,9 +84,9 @@ export default function RecommendationPanel({ recommendation }: Props) {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <article className="rounded-lg border border-white/60 bg-white/90 p-3">
-      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+    <article className="rounded-xl border border-slate-200/50 dark:border-slate-800/40 bg-slate-500/5 dark:bg-slate-900/40 p-3.5 transition-all duration-300">
+      <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">{label}</p>
+      <p className="mt-1.5 font-display text-sm sm:text-base font-bold tracking-tight text-slate-900 dark:text-white">{value}</p>
     </article>
   );
 }

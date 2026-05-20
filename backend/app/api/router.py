@@ -6,16 +6,18 @@ from app.api import (
     approvals,
     auth,
     bulk_import,
-    customers,
     dashboard,
-    market_comparison,
     master,
+    market_comparison,
     policies,
     pricing,
     products,
     quotes,
-    upload_center,
+    sandbox_dashboard,
+    sandbox_pricing,
+    sandbox_products,
     uploads,
+    upload_center,
 )
 from app.core.deps import get_current_user
 from app.db.models import User
@@ -28,12 +30,14 @@ api_router.include_router(quotes.router, prefix="/quotes", tags=["quotes"])
 api_router.include_router(approvals.router, prefix="/approvals", tags=["approvals"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
-api_router.include_router(customers.router, prefix="/customers", tags=["customers"])
 api_router.include_router(policies.router, tags=["policy-governance"])
 api_router.include_router(uploads.router, tags=["uploads"])
-api_router.include_router(bulk_import.router, tags=["bulk-import"])
 api_router.include_router(upload_center.router)
 api_router.include_router(market_comparison.router)
+api_router.include_router(bulk_import.router)
+api_router.include_router(sandbox_products.router)
+api_router.include_router(sandbox_pricing.router)
+api_router.include_router(sandbox_dashboard.router)
 api_router.include_router(products.router)
 api_router.include_router(pricing.router)
 api_router.include_router(dashboard.router)

@@ -43,10 +43,10 @@ const BYPASS_USERS: Record<Role, UserMe> = {
 };
 
 const ROLE_CARDS: { role: Role; label: string; desc: string; icon: string }[] = [
-  { role: 'sales', label: 'Sales Manager', desc: 'Create deals & generate AI pricing', icon: '💼' },
-  { role: 'approver', label: 'Sales Director', desc: 'Review & approve pricing requests', icon: '✅' },
-  { role: 'executive', label: 'Executive Viewer', desc: 'View analytics & KPI dashboards', icon: '📊' },
-  { role: 'admin', label: 'Admin Governance', desc: 'System admin & user management', icon: '⚙️' },
+  { role: 'sales', label: 'Sales Manager', desc: 'Create deals & run pricing simulations', icon: '💼' },
+  { role: 'approver', label: 'Sales Director', desc: 'Review & approve pricing overrides', icon: '✅' },
+  { role: 'executive', label: 'Executive Viewer', desc: 'View global analytics & leakage stats', icon: '📊' },
+  { role: 'admin', label: 'Admin Governance', desc: 'Ingest policy rules & manage users', icon: '⚙️' },
 ];
 
 export default function LoginPage() {
@@ -109,167 +109,174 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen" id="login-page">
-      {/* Left panel — branding */}
+    <div className="flex min-h-screen bg-slate-950 text-slate-100" id="login-page">
+      {/* Left panel — premium corporate branding */}
       <div
-        className="relative hidden w-[480px] flex-col justify-between overflow-hidden lg:flex"
-        style={{ background: 'linear-gradient(160deg, #262261 0%, #1b1849 50%, #110f36 100%)' }}
+        className="relative hidden w-[490px] flex-col justify-between overflow-hidden lg:flex border-r border-slate-900 shadow-2xl"
+        style={{ background: 'linear-gradient(160deg, #090b16 0%, #11142e 50%, #060812 100%)' }}
       >
-        {/* Decorative shapes */}
-        <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-brand-red/10 blur-3xl" />
-        <div className="absolute bottom-20 right-10 h-48 w-48 rounded-full bg-white/5 blur-2xl" />
+        {/* Glow effects */}
+        <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-indigo-500/10 blur-[100px]" />
+        <div className="absolute bottom-40 right-0 h-64 w-64 rounded-full bg-violet-500/10 blur-[120px]" />
 
         <div className="relative z-10 p-10">
-          <ChinHinLogo />
-          <div className="mt-12">
-            <h2 className="font-display text-3xl font-bold leading-tight text-white">
-              AI Pricing
-              <br />
-              Strategist
+          <ChinHinLogo className="p-3 shadow-lg" imageClassName="h-16 w-56" />
+          
+          <div className="mt-16">
+            <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold tracking-wider text-indigo-400 border border-indigo-500/20 uppercase">
+              AI Command Suite
+            </span>
+            <h2 className="mt-4 font-display text-4xl font-extrabold leading-tight tracking-tight text-white">
+              Chin Hin <br />
+              <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-indigo-400 bg-clip-text text-transparent">
+                Pricing Copilot
+              </span>
             </h2>
-            <p className="mt-4 max-w-[320px] text-sm leading-relaxed text-white/60">
-              Maximize profit with AI-driven pricing recommendations powered by Azure OpenAI. 
-              Real-time win probability scoring, margin optimization, and negotiation guidance.
+            <p className="mt-5 max-w-[340px] text-[13px] leading-relaxed text-slate-400">
+              Transform deal workflows with state-of-the-art AI recommendations, real-time margin simulators, smart document extraction, and seamless approval governance.
             </p>
           </div>
 
-          <div className="mt-12 space-y-4">
+          <div className="mt-16 space-y-4">
             {[
-              'AI-optimized price recommendations',
-              'Real-time win probability scoring',
-              'Automated policy enforcement',
-              'Full audit trail & governance',
-            ].map((feature) => (
-              <div key={feature} className="flex items-center gap-3 text-white/70">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-brand-red/80">
-                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
+              { title: 'AI Recommendation Engine', desc: 'Optimized margin floors based on parameters' },
+              { title: 'Governance & Integrity', desc: 'Secure approval workflow for margin exceptions' },
+              { title: 'True Margin Simulations', desc: 'Accurate MDF and rebate deduction snapshots' },
+              { title: 'Document Intelligence', desc: 'Extract trading terms from PDFs automatically' },
+            ].map((feature, idx) => (
+              <div key={idx} className="flex items-start gap-4">
+                <div className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 border border-indigo-500/30">
+                  <div className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
                 </div>
-                <span className="text-[13px]">{feature}</span>
+                <div className="leading-tight">
+                  <p className="text-[13px] font-bold text-white">{feature.title}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">{feature.desc}</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="relative z-10 p-10">
-          <p className="text-[11px] text-white/30">© 2026 Chin Hin Group Berhad. All rights reserved.</p>
+        <div className="relative z-10 p-10 border-t border-slate-900/60 bg-slate-950/20">
+          <p className="text-[11px] text-slate-600">
+            © 2026 Chin Hin Group Berhad. Enterprise control tower suite.
+          </p>
         </div>
       </div>
 
-      {/* Right panel — login form */}
-      <div className="flex flex-1 items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 p-6">
-        <form
-          onSubmit={onSubmit}
-          className="w-full max-w-md"
-        >
+      {/* Right panel — login interface */}
+      <div className="flex flex-1 items-center justify-center p-6 bg-radial-gradient">
+        {/* Glow ambient background */}
+        <div className="absolute right-10 top-10 h-72 w-72 rounded-full bg-indigo-600/5 blur-[120px] pointer-events-none" />
+        <div className="absolute left-1/3 bottom-10 h-96 w-96 rounded-full bg-violet-600/5 blur-[140px] pointer-events-none" />
+
+        <div className="w-full max-w-lg glass-card rounded-3xl p-8 border border-slate-800/80 bg-slate-900/40 shadow-2xl relative z-10">
           {/* Mobile logo */}
           <div className="mb-8 lg:hidden">
-            <div className="inline-flex items-center gap-2">
-              <svg viewBox="0 0 48 48" fill="none" className="h-8 w-8">
-                <polygon points="4,38 20,10 26,10 10,38" fill="#E41E2B" />
-                <polygon points="12,38 28,10 34,10 18,38" fill="#1e3a7b" />
-                <polygon points="20,38 36,10 42,10 26,38" fill="#262261" />
-                <polygon points="10,38 26,10 28,10 12,38" fill="white" opacity="0.9" />
-                <polygon points="18,38 34,10 36,10 20,38" fill="white" opacity="0.9" />
-              </svg>
-              <span className="font-display text-lg font-bold text-brand-navy">CHIN HIN</span>
-            </div>
+            <ChinHinLogo className="border border-slate-800 p-2 shadow-sm" imageClassName="h-10 w-40" />
           </div>
 
-          <h1 className="font-display text-3xl font-bold text-slate-900">Welcome back</h1>
-          <p className="mt-2 text-sm text-slate-500">Sign in to the Pricing Copilot platform</p>
+          <h1 className="font-display text-3xl font-extrabold text-white tracking-tight">System Control Tower</h1>
+          <p className="mt-2 text-sm text-slate-400">Authenticating user node for Chin Hin Group</p>
 
           {authBypassEnabled ? (
-            <div className="mt-8 space-y-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                Select Actor Role
-              </p>
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Select System Node Role
+                </span>
+                <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
+                  Dev Bypass Active
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {ROLE_CARDS.map(({ role, label, desc, icon }) => (
                   <button
                     key={role}
                     type="button"
-                    className="group flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-brand-navy/30 hover:shadow-md active:scale-[0.98]"
+                    className="group flex flex-col justify-between items-start rounded-2xl border border-slate-800 bg-slate-950/40 p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:border-indigo-500/40 hover:bg-slate-900/40 hover:shadow-lg hover:shadow-indigo-500/5 active:scale-[0.98]"
                     disabled={loading}
                     onClick={() => loginAsActor(role)}
                   >
-                    <span className="text-xl">{icon}</span>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900 group-hover:text-brand-navy">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{icon}</span>
+                      <p className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors">
                         {label}
                       </p>
-                      <p className="mt-0.5 text-[11px] text-slate-400">{desc}</p>
                     </div>
+                    <p className="mt-2 text-[10px] text-slate-500 leading-normal">{desc}</p>
                   </button>
                 ))}
               </div>
             </div>
           ) : (
-            <>
-              <label className="mt-8 block text-sm font-medium text-slate-700">
-                Email
-              </label>
-              <input
-                className="input mt-2"
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
-                placeholder="admin@gmail.com"
-                autoComplete="username"
-                required
-              />
+            <form onSubmit={onSubmit} className="mt-8 space-y-5">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Corporate Email
+                </label>
+                <input
+                  type="email"
+                  className="input mt-2 bg-slate-950/40 border-slate-800 text-slate-100"
+                  value={identifier}
+                  onChange={(event) => setIdentifier(event.target.value)}
+                  placeholder="admin@gmail.com"
+                  autoComplete="username"
+                  required
+                />
+              </div>
 
-              <label className="mt-5 block text-sm font-medium text-slate-700">
-                Password
-              </label>
-              <input
-                type="password"
-                className="input mt-2"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Security Password
+                </label>
+                <input
+                  type="password"
+                  className="input mt-2 bg-slate-950/40 border-slate-800 text-slate-100"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+
+              {error ? (
+                <div className="rounded-xl border border-red-950/50 bg-red-950/20 px-4 py-3 text-xs text-red-400 border-l-4 border-l-red-500">
+                  {error}
+                </div>
+              ) : null}
+
+              <button
+                type="submit"
+                className="btn-primary mt-6 flex w-full items-center justify-center gap-2.5 py-3 text-sm font-bold shadow-lg shadow-indigo-600/20"
+                disabled={loading}
+              >
+                {loading ? (
+                  <svg
+                    className="h-4 w-4 animate-spin text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                ) : null}
+                {loading ? 'Validating Nodes...' : 'Establish Secure Connection'}
+              </button>
+            </form>
           )}
 
-          {error ? (
-            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          ) : null}
-
-          {!authBypassEnabled ? (
-            <button
-              type="submit"
-              className="btn-primary mt-6 flex w-full items-center justify-center gap-2 py-3 text-base"
-              disabled={loading}
-            >
-              {loading ? (
-                <svg
-                  className="h-4 w-4 animate-spin text-white"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-              ) : null}
-              {loading ? 'Signing In...' : 'Sign In'}
-            </button>
-          ) : null}
-
-          <div className="mt-8 rounded-xl bg-slate-50 p-4 text-[12px] text-slate-500 leading-relaxed">
+          <div className="mt-8 rounded-2xl bg-slate-950/50 p-4 border border-slate-900 text-[11px] text-slate-500 leading-relaxed text-center">
             {authBypassEnabled
-              ? 'Bypass mode is enabled for actor workflow testing. Select a role above to enter the system directly.'
-              : 'Registration is disabled. Admin creates all user accounts and controls activation.'}
+              ? 'Dev bypass active. Select any system node above to directly load mock data simulations.'
+              : 'Public registrations are strictly prohibited. Node accounts managed by Admin Governance.'}
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

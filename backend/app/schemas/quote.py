@@ -68,6 +68,11 @@ class RecommendationResponse(BaseModel):
     next_best_action: str | None = None
 
 
+class SaveQuoteDraftRequest(BaseModel):
+    requested_price: float = Field(gt=0)
+    strategy_mode: StrategyMode | None = None
+
+
 class FinalizeQuoteRequest(BaseModel):
     final_price: float = Field(gt=0)
     reason: str | None = None

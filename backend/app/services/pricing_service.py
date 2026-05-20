@@ -20,16 +20,14 @@ from app.db.models import (
     QuoteStatus,
     Recommendation,
     RiskLevel,
+    StrategyMode,
 )
 from app.schemas.quote import RecommendationResponse
 from app.services.audit_logger import log_audit
 from app.services.feature_builder import build_feature_context, hash_features
 from app.services.foundry_client import FoundryScoringClient
 from app.services.foundry_gpt_client import FoundryClient
-from app.services.explanation_service import generate_three_level_explanation
 from app.services.finance_engine import compute_true_margin
-from app.services.market_comparison_engine import analyze_product_market_position, update_product_value_profile
-from app.services.model_run_logger import log_model_run
 from app.services.optimization_engine import (
     OptimizerInput,
     generate_candidate_prices,
@@ -69,16 +67,6 @@ class PricingService:
             )
         ) or 0
         return float(overridden / total)
-
-    def _scoring_provider(self) -> tuple[str, bool]:
-        if self.settings.foundry_scoring_endpoint_url and self.settings.foundry_api_key:
-            return "azure_openai", False
-        return "deterministic_local", True
-
-    def _explanation_provider(self) -> tuple[str, bool]:
-        if self.settings.foundry_endpoint_url and self.settings.foundry_api_key:
-            return "azure_openai", False
-        return "deterministic_local", True
 
     def _load_quote(self, db: Session, quote_id: str) -> Quote:
         quote = db.scalar(
@@ -231,7 +219,7 @@ class PricingService:
             quote_id=quote.id,
             model_version=model_version,
             feature_schema_version=self.settings.feature_schema_version,
-            foundry_outputs_json={
+            xgb_outputs_json={
                 "feature_hash": feature_hash,
                 "rows": scored_rows,
                 "probabilities": probabilities,
@@ -241,6 +229,23 @@ class PricingService:
             gpt_outputs_json=explanation,
         )
         db.add(recommendation)
+        fallback_used = model_version == "deterministic-fallback-v1"
+        create_ai_recommendation_trace(
+            db=db,
+            quote_id=quote.id,
+            product_id=product.id,
+            recommended_price=float(best["price"]),
+            recommended_price_low=float(optimization["band_low"]),
+            recommended_price_high=float(optimization["band_high"]),
+            win_probability=float(best["win_probability"]),
+            confidence=float(optimization["confidence"]),
+            model_version=model_version,
+            model_provider="deterministic_local" if fallback_used else self.settings.active_ai_provider,
+            fallback_used=fallback_used,
+            explanation_json=explanation,
+            risk_level=risk_level.value,
+        )
+
         log_audit(
             db=db,
             actor_user_id=actor_user_id,
@@ -270,113 +275,33 @@ class PricingService:
             proposed_price=float(best["price"]),
             actor_user_id=None,
         )
-        market_analysis = analyze_product_market_position(db=db, product_id=str(product.id))
-        update_product_value_profile(db=db, product_id=str(product.id), commit=False)
-        policy_messages = [violation["message"] for violation in policy_result["violations"]]
-        three_level = generate_three_level_explanation(
-            product_name=product.name,
-            recommended_price=float(best["price"]),
-            list_price=float(product.list_price),
-            unit_cost=float(product.unit_cost),
-            margin_percent=float(best["margin_percent"]),
-            confidence=float(optimization["confidence"]),
-            channel=quote.channel,
-            win_probability=float(best["win_probability"]),
-            risk_level=risk_level.value,
-            discount_percent=float(best["discount_percent"]),
-            policy_violations=policy_messages,
-            competitor_position=(
-                market_analysis.market_comparison_summary if market_analysis and market_analysis.competitor_count else None
-            ),
-            model_version=model_version,
-            fallback_used=model_version.startswith("deterministic-fallback"),
-        )
-        scoring_provider, scoring_fallback = self._scoring_provider()
-        explanation_provider, explanation_fallback = self._explanation_provider()
-        source_document_ids = sorted(
-            {
-                document_id
-                for document_id in [
-                    *(policy_result["pricebook_compliance_summary"].get("source_document_id") and [policy_result["pricebook_compliance_summary"].get("source_document_id")] or []),
-                    *policy_result["contract_pricing_summary"].get("source_document_ids", []),
-                    *[
-                        entitlement.get("source_document_id")
-                        for entitlement in policy_result["entitlements"]
-                        if entitlement.get("source_document_id")
-                    ],
-                ]
-                if document_id
-            }
-        )
-        source_rule_ids = sorted(
-            {
-                clause_id
-                for clause_id in [violation.get("clause_id") for violation in policy_result["violations"]]
-                if clause_id
-            }
-        )
-        recommendation_trace = create_ai_recommendation_trace(
-            db=db,
-            quote_id=quote.id,
-            product_id=product.id,
-            recommended_price=float(best["price"]),
-            recommended_price_low=float(optimization["band_low"]),
-            recommended_price_high=float(optimization["band_high"]),
-            confidence=float(optimization["confidence"]),
-            win_probability=float(best["win_probability"]),
-            model_version=model_version,
-            model_provider=scoring_provider,
-            fallback_used=scoring_fallback or explanation_fallback,
-            explanation_json={
-                "llm_explanation": explanation,
-                "quick_summary": three_level.quick_summary,
-                "business_explanation": three_level.business_explanation,
-                "detailed_trace": three_level.detailed_trace,
-            },
-            source_rule_ids=source_rule_ids,
-            source_document_ids=source_document_ids,
-            finance_snapshot_id=finance_snapshot.id,
-            risk_level=risk_level.value,
-            competitor_comparison_summary=(
-                {
-                    "market_comparison_summary": market_analysis.market_comparison_summary,
-                    "recommended_strategy": market_analysis.recommended_strategy,
-                    "value_score": market_analysis.value_score,
-                    "price_gap_percent": market_analysis.price_gap_percent,
-                    "competitor_count": market_analysis.competitor_count,
-                }
-                if market_analysis
-                else {}
-            ),
-            value_positioning_label=market_analysis.value_positioning_label if market_analysis else None,
-        )
-        db.flush()
-        log_model_run(
-            db=db,
-            run_type="pricing_recommendation",
-            model_name="pricing_control_tower",
-            model_version=model_version,
-            model_provider=scoring_provider,
-            request_id=request_id,
-            status="completed",
-            fallback_used=scoring_fallback or explanation_fallback,
-            input_hash=feature_hash,
-            related_quote_id=quote.id,
-            related_product_id=product.id,
-            related_recommendation_id=recommendation_trace.id,
-            meta_json={
-                "risk_level": risk_level.value,
-                "pricebook_status": policy_result["pricebook_compliance_summary"]["status"],
-                "contract_status": policy_result["contract_pricing_summary"]["status"],
-                "campaign_eligible_count": policy_result["campaign_summary"]["eligible_campaign_count"],
-                "leakage_amount": float(finance_snapshot.leakage_amount),
-                "value_positioning_label": market_analysis.value_positioning_label if market_analysis else None,
-                "recommended_strategy": market_analysis.recommended_strategy if market_analysis else "hold_price",
-            },
-        )
 
         db.commit()
         db.refresh(item)
+
+        market_summary = policy_result["market_comparison_summary"]
+        true_margin_summary = {
+            "proposed_price": float(finance_snapshot.proposed_price),
+            "list_revenue_total": float(finance_snapshot.list_revenue_total),
+            "revenue_total": float(finance_snapshot.revenue_total),
+            "cogs_total": float(finance_snapshot.cogs_total),
+            "rebate_amount": float(finance_snapshot.rebate_amount),
+            "gift_cost_amount": float(finance_snapshot.gift_cost_amount),
+            "bundle_cost_amount": float(finance_snapshot.bundle_cost_amount),
+            "promotion_allocation_amount": float(finance_snapshot.promotion_allocation_amount),
+            "campaign_cost_amount": float(finance_snapshot.campaign_cost_amount),
+            "freight_amount": float(finance_snapshot.freight_amount),
+            "fees_amount": float(finance_snapshot.fees_amount),
+            "contract_effect_amount": float(finance_snapshot.contract_effect_amount),
+            "list_margin_amount": float(finance_snapshot.list_margin_amount),
+            "price_discount_amount": float(finance_snapshot.price_discount_amount),
+            "gross_margin_amount": float(finance_snapshot.gross_margin_amount),
+            "net_margin_amount": float(finance_snapshot.net_margin_amount),
+            "net_margin_percent": float(finance_snapshot.net_margin_percent),
+            "leakage_amount": float(finance_snapshot.leakage_amount),
+            "leakage_reasons": finance_snapshot.leakage_reasons_json,
+            "contract_summary": finance_snapshot.leakage_flags_json.get("contract_summary"),
+        }
 
         return RecommendationResponse(
             quote_id=str(quote.id),
@@ -392,75 +317,20 @@ class PricingService:
             risk_level=risk_level,
             safe_band=zone,
             explanation=explanation,
-            explanation_levels={
-                "quick_summary": three_level.quick_summary,
-                "business_explanation": three_level.business_explanation,
-                "detailed_trace": three_level.detailed_trace,
-            },
             candidates=optimization["points"],
             safe_price_range={
                 "low": float(optimization["band_low"]),
                 "high": float(optimization["band_high"]),
             },
-            true_margin_snapshot_summary={
-                "proposed_price": float(finance_snapshot.proposed_price),
-                "list_revenue_total": float(finance_snapshot.list_revenue_total),
-                "discounted_revenue_total": float(finance_snapshot.revenue_total),
-                "list_margin_amount": float(finance_snapshot.list_margin_amount),
-                "price_discount_amount": float(finance_snapshot.price_discount_amount),
-                "net_margin_percent": float(finance_snapshot.net_margin_percent),
-                "net_margin_amount": float(finance_snapshot.net_margin_amount),
-                "rebate_amount": float(finance_snapshot.rebate_amount),
-                "rebate_summary": finance_snapshot.leakage_flags_json.get("rebate_summary"),
-                "gift_cost_amount": float(finance_snapshot.gift_cost_amount),
-                "bundle_cost_amount": float(finance_snapshot.bundle_cost_amount),
-                "promotion_allocation_amount": float(finance_snapshot.promotion_allocation_amount),
-                "campaign_cost_amount": float(finance_snapshot.campaign_cost_amount),
-                "freight_amount": float(finance_snapshot.freight_amount),
-                "fees_amount": float(finance_snapshot.fees_amount),
-                "mdf_amount": float(finance_snapshot.mdf_amount),
-                "contract_effect_amount": float(finance_snapshot.contract_effect_amount),
-                "leakage_amount": float(finance_snapshot.leakage_amount),
-                "leakage_reasons": list(finance_snapshot.leakage_reasons_json or []),
-                "contract_summary": finance_snapshot.leakage_flags_json.get("contract_summary"),
-                "market_comparison_summary": market_analysis.market_comparison_summary if market_analysis else None,
-            },
+            true_margin_snapshot_summary=true_margin_summary,
             policy_entitlements_summary=policy_result["entitlements"],
             pricebook_compliance_summary=policy_result["pricebook_compliance_summary"],
             contract_pricing_summary=policy_result["contract_pricing_summary"],
             campaign_summary=policy_result["campaign_summary"],
             campaign_evaluations=policy_result["campaign_evaluations"],
-            market_comparison_summary=(
-                {
-                    "market_comparison_summary": market_analysis.market_comparison_summary,
-                    "positioning_label": market_analysis.positioning_label,
-                    "value_positioning_label": market_analysis.value_positioning_label,
-                    "value_score": market_analysis.value_score,
-                    "recommended_strategy": market_analysis.recommended_strategy,
-                    "recommendation_confidence": market_analysis.recommendation_confidence,
-                    "competitor_count": market_analysis.competitor_count,
-                    "avg_competitor_price": market_analysis.avg_competitor_price,
-                    "price_gap_percent": market_analysis.price_gap_percent,
-                    "matches": [
-                        {
-                            "competitor_name": match.competitor_name,
-                            "product_name": match.product_name,
-                            "competitor_price": match.competitor_price,
-                            "position": match.position,
-                            "quality_proxy_score": match.quality_proxy_score,
-                        }
-                        for match in market_analysis.matches
-                    ],
-                }
-                if market_analysis
-                else None
-            ),
-            value_positioning_label=market_analysis.value_positioning_label if market_analysis else None,
-            next_best_action=(
-                market_analysis.recommended_strategy.replace("_", " ").title()
-                if market_analysis
-                else "Proceed With Standard Quote Review"
-            ),
+            market_comparison_summary=market_summary,
+            value_positioning_label=market_summary["value_positioning_label"] if market_summary else None,
+            next_best_action=policy_result["recommended_action"],
         )
 
     def finalize_quote(
@@ -660,6 +530,66 @@ class PricingService:
         db.commit()
         db.refresh(approval)
         return approval
+
+    def save_draft(
+        self,
+        db: Session,
+        quote_id: str,
+        actor_user_id: str,
+        requested_price: float,
+        strategy_mode: StrategyMode | None = None,
+    ) -> Quote:
+        quote = self._load_quote(db, quote_id)
+        if quote.status not in {QuoteStatus.draft, QuoteStatus.recommended, QuoteStatus.rejected}:
+            raise ValueError(f"Cannot save draft for a quote with status {quote.status.value}")
+
+        item = quote.items[0]
+        product = db.scalar(select(Product).where(Product.id == item.product_id))
+        if not product:
+            raise ValueError("Product missing")
+
+        old_json = {
+            "requested_price": float(item.requested_price) if item.requested_price is not None else None,
+            "strategy_mode": quote.strategy_mode.value if quote.strategy_mode else None,
+        }
+
+        # Update requested price and calculate requested discount
+        item.requested_price = round(requested_price, 2)
+        item.requested_discount = round(
+            ((float(product.list_price) - requested_price) / float(product.list_price)) * 100, 2
+        )
+        if strategy_mode:
+            quote.strategy_mode = strategy_mode
+
+        log_audit(
+            db=db,
+            actor_user_id=actor_user_id,
+            action="quote_draft_saved",
+            entity_type="quote",
+            entity_id=str(quote.id),
+            old_json=old_json,
+            new_json={
+                "requested_price": float(item.requested_price),
+                "strategy_mode": quote.strategy_mode.value,
+            },
+        )
+
+        evaluate_quote_policies(
+            db=db,
+            quote=quote,
+            actor_user_id=None,
+            price_override=requested_price,
+        )
+        compute_true_margin(
+            db=db,
+            quote_id=str(quote.id),
+            proposed_price=requested_price,
+            actor_user_id=None,
+        )
+
+        db.commit()
+        db.refresh(quote)
+        return quote
 
 
 pricing_service = PricingService()

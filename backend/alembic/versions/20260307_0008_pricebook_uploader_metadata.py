@@ -17,27 +17,27 @@ depends_on = None
 
 
 def upgrade() -> None:
-    with op.batch_alter_table("price_books") as batch_op:
-        batch_op.add_column(sa.Column("uploaded_by_user_id", sa.Uuid(), nullable=True))
-        batch_op.add_column(
-            sa.Column(
-                "created_at",
-                sa.DateTime(timezone=True),
-                nullable=False,
-                server_default=sa.text("CURRENT_TIMESTAMP"),
-            )
-        )
-        batch_op.create_foreign_key(
-            "fk_price_books_uploaded_by_user_id",
-            "users",
-            ["uploaded_by_user_id"],
-            ["id"],
-            ondelete="SET NULL",
-        )
+    op.add_column("price_books", sa.Column("uploaded_by_user_id", sa.Uuid(), nullable=True))
+    op.add_column(
+        "price_books",
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("CURRENT_TIMESTAMP"),
+        ),
+    )
+    op.create_foreign_key(
+        "fk_price_books_uploaded_by_user_id",
+        "price_books",
+        "users",
+        ["uploaded_by_user_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
 
 
 def downgrade() -> None:
-    with op.batch_alter_table("price_books") as batch_op:
-        batch_op.drop_constraint("fk_price_books_uploaded_by_user_id", type_="foreignkey")
-        batch_op.drop_column("created_at")
-        batch_op.drop_column("uploaded_by_user_id")
+    op.drop_constraint("fk_price_books_uploaded_by_user_id", "price_books", type_="foreignkey")
+    op.drop_column("price_books", "created_at")
+    op.drop_column("price_books", "uploaded_by_user_id")

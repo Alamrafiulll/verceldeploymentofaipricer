@@ -1,7 +1,7 @@
 {
   "pricing_model": {
-    "provider": "azure_foundry",
-    "model_name": "gpt-5.1-chat",
+    "provider": "openai",
+    "model_name": "gpt-5.4-mini",
     "fallback_enabled": true,
     "confidence_floor": 0.55
   },

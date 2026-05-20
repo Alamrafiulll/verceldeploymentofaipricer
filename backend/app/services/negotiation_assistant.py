@@ -7,6 +7,7 @@ import httpx
 from pydantic import BaseModel, Field, ValidationError
 
 from app.core.config import get_settings
+from app.services.openai_client import OpenAIResponseError, OpenAIResponsesClient
 
 logger = logging.getLogger("app")
 
@@ -82,12 +83,76 @@ def _fallback(context: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _negotiation_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "strategy_summary": {"type": "string"},
+            "concession_ladder": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "step": {"type": "integer", "minimum": 1, "maximum": 5},
+                        "target_price": {"type": "number", "exclusiveMinimum": 0},
+                        "message": {"type": "string"},
+                    },
+                    "required": ["step", "target_price", "message"],
+                },
+            },
+            "guardrails": {"type": "array", "items": {"type": "string"}},
+            "must_not_do": {"type": "array", "items": {"type": "string"}},
+            "policy_refs": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["strategy_summary", "concession_ladder", "guardrails", "must_not_do", "policy_refs"],
+    }
+
+
+def _validate_negotiation_output(data: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    validated = NegotiationResponseModel.model_validate(data)
+    band_low = float(context["band_low"])
+    band_high = float(context["band_high"])
+    for step in validated.concession_ladder:
+        if step.target_price < band_low or step.target_price > band_high:
+            raise ValueError("Negotiation ladder target out of allowed range")
+    return validated.model_dump()
+
+
 def generate_negotiation_guidance(context: dict[str, Any], request_id: str) -> dict[str, Any]:
     settings = get_settings()
     fallback = _fallback(context)
+    openai_client = OpenAIResponsesClient(settings)
+    if openai_client.enabled:
+        system_prompt = (
+            "You are an enterprise negotiation copilot. Return JSON only. "
+            "Use only numeric values provided in context. Do not invent numbers."
+        )
+        try:
+            data = openai_client.create_json(
+                instructions=system_prompt,
+                payload=context,
+                schema_name="negotiation_guidance",
+                schema=_negotiation_schema(),
+                request_id=request_id,
+                temperature=0.1,
+                timeout=10.0,
+            )
+            return _validate_negotiation_output(data, context)
+        except (httpx.HTTPError, OpenAIResponseError, ValidationError, ValueError) as exc:
+            logger.exception(
+                {
+                    "event": "openai_negotiation_assistant_fallback",
+                    "request_id": request_id,
+                    "error": str(exc),
+                }
+            )
+            return fallback
+
     endpoint = settings.foundry_endpoint_url
     api_key = settings.foundry_api_key
-    if not endpoint or not api_key:
+    if not settings.legacy_foundry_enabled or not endpoint or not api_key:
         return fallback
 
     headers = {"Content-Type": "application/json", "x-request-id": request_id}
@@ -135,14 +200,7 @@ def generate_negotiation_guidance(context: dict[str, Any], request_id: str) -> d
             if not content:
                 return fallback
             parsed = json.loads(content)
-            validated = NegotiationResponseModel.model_validate(parsed)
-
-            band_low = float(context["band_low"])
-            band_high = float(context["band_high"])
-            for step in validated.concession_ladder:
-                if step.target_price < band_low or step.target_price > band_high:
-                    raise ValueError("Negotiation ladder target out of allowed range")
-            return validated.model_dump()
+            return _validate_negotiation_output(parsed, context)
     except (httpx.HTTPError, json.JSONDecodeError, ValidationError, ValueError) as exc:
         logger.exception(
             {

@@ -9,6 +9,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.core.config import get_settings
 from app.services.feature_builder import build_scoring_rows
+from app.services.openai_client import OpenAIResponseError, OpenAIResponsesClient
 
 logger = logging.getLogger("app")
 
@@ -16,6 +17,7 @@ logger = logging.getLogger("app")
 class FoundryScoringClient:
     def __init__(self) -> None:
         self.settings = get_settings()
+        self.openai_client = OpenAIResponsesClient(self.settings)
 
     @staticmethod
     def _is_azure_openai_endpoint(endpoint_url: str) -> bool:
@@ -33,6 +35,48 @@ class FoundryScoringClient:
             headers["Authorization"] = f"Bearer {self.settings.foundry_api_key}"
         return headers
 
+    @staticmethod
+    def _scoring_schema() -> dict[str, Any]:
+        return {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "probabilities": {
+                    "type": "array",
+                    "items": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                },
+                "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "model_version": {"type": "string"},
+            },
+            "required": ["probabilities", "confidence", "model_version"],
+        }
+
+    def _call_openai(
+        self,
+        payload: dict[str, Any],
+        request_id: str,
+    ) -> dict[str, Any]:
+        system_prompt = (
+            "You estimate quote win probability for each candidate price. "
+            "Return JSON only. The probabilities array must have exactly the same length "
+            "and order as candidate_prices. Use floats from 0.0 to 1.0. "
+            "Lower prices should generally not have lower win probability than higher prices "
+            "unless the supplied business features justify it."
+        )
+        request_payload = {
+            "features": payload.get("features", {}),
+            "candidate_prices": payload.get("candidate_prices", []),
+        }
+        return self.openai_client.create_json(
+            instructions=system_prompt,
+            payload=request_payload,
+            schema_name="win_probability_scores",
+            schema=self._scoring_schema(),
+            request_id=request_id,
+            temperature=0.0,
+            timeout=30.0,
+        )
+
     @retry(wait=wait_exponential(multiplier=0.5, min=1, max=4), stop=stop_after_attempt(3), reraise=True)
     def _call_foundry(self, payload: dict[str, Any], request_id: str) -> dict[str, Any]:
         endpoint_url = self.settings.foundry_scoring_endpoint_url or ""
@@ -49,7 +93,7 @@ class FoundryScoringClient:
                 "You are an AI Pricing Assistant. Your task is to predict the 'win probability' "
                 "for a set of candidate prices based on deal features. "
                 "Return ONLY a valid JSON object with the following structure: "
-                "{'probabilities': [float, float, ...], 'confidence': float, 'model_version': 'gpt-5.1-chat'}. "
+                "{'probabilities': [float, float, ...], 'confidence': float, 'model_version': 'gpt-5.4-mini'}. "
                 "The probabilities list must correspond 1-to-1 with the candidate prices."
             )
             
@@ -134,7 +178,36 @@ class FoundryScoringClient:
         list_price = float(features["list_price"])
         rows = build_scoring_rows(features, list_price, candidate_prices)
 
-        if self.settings.foundry_scoring_endpoint_url and self.settings.foundry_api_key:
+        if self.openai_client.enabled:
+            payload = {
+                "features": features,
+                "candidate_prices": candidate_prices,
+                "rows": rows,
+            }
+            try:
+                data = self._call_openai(payload, request_id=request_id)
+                probs = [float(x) for x in data.get("probabilities", [])]
+                if len(probs) != len(candidate_prices):
+                    raise ValueError(
+                        f"OpenAI returned {len(probs)} probabilities for {len(candidate_prices)} candidate prices"
+                    )
+                confidence = float(data.get("confidence", 0.65))
+                return probs, confidence, self.openai_client.model_name, rows
+            except (httpx.HTTPError, OpenAIResponseError, ValueError) as exc:
+                logger.exception(
+                    {
+                        "event": "openai_scoring_error",
+                        "request_id": request_id,
+                        "error": str(exc),
+                    }
+                )
+                return self._deterministic_fallback(features, candidate_prices, rows)
+
+        if (
+            self.settings.legacy_foundry_enabled
+            and self.settings.foundry_scoring_endpoint_url
+            and self.settings.foundry_api_key
+        ):
             payload = {
                 "features": features,
                 "candidate_prices": candidate_prices,
@@ -152,7 +225,7 @@ class FoundryScoringClient:
                 
                 model_version = data.get("model_version", self.settings.win_model_version)
                 if not model_version or model_version == "xgb-v1":
-                     model_version = "gpt-5.1-chat"
+                     model_version = self.settings.foundry_model_name
 
                 return probs, confidence, model_version, rows
             except Exception as exc:

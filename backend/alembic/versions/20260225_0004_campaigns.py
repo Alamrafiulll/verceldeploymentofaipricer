@@ -7,6 +7,7 @@ Create Date: 2026-02-25 00:04:00
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "20260225_0004"
@@ -14,21 +15,25 @@ down_revision = "20260225_0003"
 branch_labels = None
 depends_on = None
 
-campaign_status_enum = sa.Enum(
+campaign_status_enum = postgresql.ENUM(
     "active",
     "inactive",
     name="campaignstatus",
+    create_type=False,
 )
-campaign_rule_type_enum = sa.Enum(
+campaign_rule_type_enum = postgresql.ENUM(
     "free_gift",
     "discount",
     "bundle",
     name="campaignruletype",
+    create_type=False,
 )
 
 
 def upgrade() -> None:
-    # Enum creation skipped
+    bind = op.get_bind()
+    campaign_status_enum.create(bind, checkfirst=True)
+    campaign_rule_type_enum.create(bind, checkfirst=True)
 
     op.create_table(
         "campaigns",
@@ -47,9 +52,9 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("campaign_id", sa.Uuid(), nullable=False),
         sa.Column("rule_type", campaign_rule_type_enum, nullable=False),
-        sa.Column("eligibility_json", sa.JSON(), nullable=False),
-        sa.Column("exclusion_json", sa.JSON(), nullable=False),
-        sa.Column("entitlement_json", sa.JSON(), nullable=False),
+        sa.Column("eligibility_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("exclusion_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("entitlement_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.ForeignKeyConstraint(["campaign_id"], ["campaigns.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -59,4 +64,6 @@ def downgrade() -> None:
     op.drop_table("campaign_rules")
     op.drop_table("campaigns")
 
-    # Enum drop skipped
+    bind = op.get_bind()
+    campaign_rule_type_enum.drop(bind, checkfirst=True)
+    campaign_status_enum.drop(bind, checkfirst=True)

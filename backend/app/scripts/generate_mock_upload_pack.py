@@ -352,8 +352,8 @@ def _write_admin_pack(products: list[dict[str, object]], customers: list[str]) -
         VALID_DIR / "model_configuration_control_tower.json",
         {
             "pricing_model": {
-                "provider": "azure_foundry",
-                "model_name": "gpt-5.1-chat",
+                "provider": "openai",
+                "model_name": "gpt-5.4-mini",
                 "fallback_enabled": True,
                 "confidence_floor": 0.55,
             },

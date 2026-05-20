@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_db, require_roles
-from app.db.models import Inventory, PricingRule, Product, RoleEnum, User
+from app.db.models import Product, RoleEnum, User
 from app.schemas.product_schema import SandboxProductCreate, SandboxProductOut
 
 router = APIRouter(prefix="/sandbox", tags=["sandbox"])
@@ -46,35 +46,6 @@ def create_product(
         list_price=payload.current_price,
     )
     db.add(product)
-    db.flush()
-
-    # Create Inventory
-    inventory = Inventory(
-        product_id=product.id,
-        on_hand=1000,
-        stock_age_days_avg=30,
-    )
-    db.add(inventory)
-
-    # Ensure a PricingRule exists for this category/channel
-    # Assuming "direct" channel as default for sandbox
-    channel = "direct"
-    rule = db.scalar(
-        select(PricingRule).where(
-            PricingRule.channel == channel,
-            PricingRule.category == product.category,
-        )
-    )
-    if not rule:
-        rule = PricingRule(
-            channel=channel,
-            category=product.category,
-            margin_floor_percent=10.0,
-            max_discount_percent=30.0,
-            approval_required_below_margin_buffer=2.0,
-        )
-        db.add(rule)
-
     db.commit()
     db.refresh(product)
 

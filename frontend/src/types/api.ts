@@ -83,11 +83,6 @@ export interface Recommendation {
     approval_justification_suggestion?: string;
     executive_summary?: string;
   };
-  explanation_levels?: {
-    quick_summary?: string;
-    business_explanation?: string;
-    detailed_trace?: string;
-  } | null;
   candidates: CandidatePoint[];
   safe_price_range?: { low: number; high: number };
   true_margin_snapshot_summary?: Record<string, unknown> | null;
@@ -127,7 +122,7 @@ export interface QuoteDetail {
     risk_level: 'low' | 'medium' | 'high' | null;
   };
   latest_recommendation: {
-    foundry: Record<string, unknown>;
+    xgb: Record<string, unknown>;
     optimizer: Record<string, unknown>;
     gpt: Record<string, unknown>;
     model_version: string;
@@ -202,13 +197,8 @@ export interface QuoteFinanceSnapshot {
   leakage_flags_json: {
     flags?: Array<{ code: string; severity: string; message: string }>;
     contract_bounds?: Record<string, unknown> | null;
-    contract_summary?: Record<string, unknown> | null;
     policy_violations?: PolicyViolation[];
-    rebate_summary?: Record<string, unknown> | null;
-    campaign_summary?: Record<string, unknown> | null;
-    campaign_evaluations?: Array<Record<string, unknown>> | null;
-    leakage_amount?: number;
-    leakage_reasons?: Array<Record<string, unknown>>;
+    contract_summary?: Record<string, unknown> | null;
   };
   rebate_summary?: Record<string, unknown> | null;
   contract_pricing_summary?: Record<string, unknown> | null;
@@ -277,30 +267,6 @@ export interface Approval {
   decision_reason: string | null;
   created_at: string;
   decided_at: string | null;
-}
-
-export interface SimilarCase {
-  recommendation_id: string;
-  quote_id: string | null;
-  recommended_price: number;
-  win_probability: number | null;
-  confidence: number;
-  approval_status: 'pending' | 'approved' | 'rejected';
-  risk_level: string | null;
-  value_positioning_label: string | null;
-  timestamp: string;
-}
-
-export interface ApprovalContext {
-  approval: Approval;
-  quote_summary: Record<string, unknown>;
-  ai_recommendation_summary?: Record<string, unknown> | null;
-  current_finance?: Record<string, unknown> | null;
-  requested_finance?: Record<string, unknown> | null;
-  policy_check?: QuotePolicyCheck | null;
-  market_comparison_summary?: Record<string, unknown> | null;
-  similar_cases: SimilarCase[];
-  recommended_action: string;
 }
 
 export interface AuditLog {
@@ -381,7 +347,6 @@ export interface PolicyClause {
   structured_json: Record<string, unknown>;
   raw_text: string;
   confidence: number;
-  policy_source_reference?: string | null;
 }
 
 export interface PolicyDocument {
@@ -391,20 +356,10 @@ export interface PolicyDocument {
   source_uri: string | null;
   file_hash: string;
   uploaded_by_user_id: string;
-  source_uploaded_file_id?: string | null;
   uploaded_at: string;
   effective_start: string | null;
   effective_end: string | null;
-  auto_create_campaign?: boolean;
-  review_notes?: string | null;
-  reviewed_by_user_id?: string | null;
-  reviewed_at?: string | null;
   status: PolicyDocumentStatus;
-  review_status?: string | null;
-  clause_count?: number;
-  average_clause_confidence?: number;
-  policy_source_reference?: string | null;
-  next_step?: string | null;
   clauses: PolicyClause[];
 }
 
@@ -459,127 +414,16 @@ export interface UploadedFileRecord {
   file_hash: string;
   file_size_bytes: number;
   source_uri: string | null;
-  status: 'draft' | 'parsed' | 'needs_review' | 'active' | 'rejected' | 'archived';
+  status: 'active' | 'archived' | 'draft' | 'parsed' | 'needs_review' | 'rejected';
   meta_json: Record<string, unknown>;
   extraction_summary?: string | null;
   extracted_entities_count?: number | null;
   linked_policy_id?: string | null;
-  linked_campaign_id?: string | null;
   linked_pricebook_id?: string | null;
   linked_contract_id?: string | null;
-  linked_rebate_program_id?: string | null;
   validation_issues?: Record<string, unknown> | null;
   review_status?: string | null;
-  next_step?: string | null;
   created_at: string;
-}
-
-export interface RebateProgram {
-  id: string;
-  name: string;
-  channel: string | null;
-  tier_rates_json: Record<string, number>;
-  mdf_percent: number;
-  display_incentive_percent: number;
-  manager_discretion_warning: string | null;
-  retroactive_incentive: boolean;
-  program_meta_json: Record<string, unknown>;
-  effective_start: string | null;
-  effective_end: string | null;
-  source_document_id: string | null;
-  created_at: string;
-}
-
-export type ContractStatus = 'active' | 'inactive';
-
-export interface ContractLine {
-  id: string;
-  product_id: string;
-  floor_price: number;
-  ceiling_price: number;
-  discount_cap_percent: number | null;
-}
-
-export interface ContractRecord {
-  id: string;
-  customer_id: string;
-  customer_name: string | null;
-  name: string;
-  effective_start: string | null;
-  effective_end: string | null;
-  status: ContractStatus;
-  source_document_id: string | null;
-  source_uploaded_file_id: string | null;
-  contract_source_reference?: string | null;
-  created_at: string;
-  lines: ContractLine[];
-}
-
-export interface MarketComparison {
-  product_id: string;
-  product_name: string;
-  category: string;
-  chin_hin_price: number;
-  competitor_count: number;
-  avg_competitor_price: number;
-  min_competitor_price: number;
-  max_competitor_price: number;
-  price_gap_percent: number;
-  positioning_label: string;
-  value_positioning_label: string;
-  value_score: number;
-  recommendation_confidence: number;
-  recommended_strategy: string;
-  market_comparison_summary: string;
-  reasoning: string;
-  matches: Array<Record<string, unknown>>;
-}
-
-export interface ValueProfile {
-  id: string;
-  product_id: string;
-  value_score: number | null;
-  positioning_label: string | null;
-  price_band: string | null;
-  competitor_count: number;
-  avg_competitor_price: number | null;
-  price_gap_percent: number | null;
-  recommended_strategy: string | null;
-  analysis_json: Record<string, unknown>;
-  updated_at: string;
-}
-
-export interface GovernanceSummary {
-  pending_upload_reviews: number;
-  pending_policy_reviews: number;
-  active_pricebooks: number;
-  active_campaigns: number;
-  active_contracts: number;
-  active_rebate_programs: number;
-  model_run_failures: number;
-  ai_trace_count: number;
-  unmatched_competitor_records: number;
-  average_policy_confidence: number;
-}
-
-export interface ReviewQueueItem {
-  item_type: string;
-  item_id: string;
-  label: string;
-  status: string;
-  source_reference?: string | null;
-  uploaded_at?: string | null;
-  next_step?: string | null;
-}
-
-export interface DataQuality {
-  upload_parse_failures: number;
-  uploads_needing_review: number;
-  reviews_pending_activation: number;
-  unmatched_competitor_records: number;
-  recommendations_with_fallback: number;
-  model_run_failures: number;
-  average_clause_confidence: number;
 }
 
 export interface AIRecommendationTrace {
@@ -604,4 +448,61 @@ export interface AIRecommendationTrace {
   approved_by_user_id: string | null;
   approval_status: 'pending' | 'approved' | 'rejected';
   timestamp: string;
+}
+
+export interface GovernanceSummary {
+  pending_upload_reviews: number;
+  pending_policy_reviews: number;
+  active_pricebooks: number;
+  active_campaigns: number;
+  active_contracts: number;
+  active_rebate_programs: number;
+  model_run_failures: number;
+  ai_trace_count: number;
+  unmatched_competitor_records: number;
+  average_policy_confidence: number;
+}
+
+export interface ReviewQueueItem {
+  item_type: string;
+  item_id: string;
+  label: string;
+  status: string;
+  source_reference: string | null;
+  uploaded_at: string | null;
+  next_step: string | null;
+}
+
+export interface DataQuality {
+  upload_parse_failures: number;
+  uploads_needing_review: number;
+  reviews_pending_activation: number;
+  unmatched_competitor_records: number;
+  recommendations_with_fallback: number;
+  model_run_failures: number;
+  average_clause_confidence: number;
+}
+
+export interface SimilarApprovalCase {
+  recommendation_id: string;
+  quote_id: string | null;
+  recommended_price: number;
+  win_probability: number | null;
+  confidence: number;
+  approval_status: string;
+  risk_level: string | null;
+  value_positioning_label: string | null;
+  timestamp: string;
+}
+
+export interface ApprovalContext {
+  approval: Approval;
+  quote_summary: Record<string, unknown>;
+  ai_recommendation_summary: Record<string, unknown> | null;
+  current_finance: Record<string, unknown> | null;
+  requested_finance: Record<string, unknown> | null;
+  policy_check: QuotePolicyCheck | null;
+  market_comparison_summary: Record<string, unknown> | null;
+  similar_cases: SimilarApprovalCase[];
+  recommended_action: string;
 }

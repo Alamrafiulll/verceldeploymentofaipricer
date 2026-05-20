@@ -7,6 +7,7 @@ Create Date: 2026-03-07 16:00:00
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -16,7 +17,7 @@ branch_labels = None
 depends_on = None
 
 
-upload_type_enum = sa.Enum(
+upload_type_enum = postgresql.ENUM(
     "sales_history",
     "product_catalog",
     "current_price_list",
@@ -32,15 +33,20 @@ upload_type_enum = sa.Enum(
     "audit_log_archive",
     "model_configuration",
     name="uploadtype",
+    create_type=False,
 )
-upload_status_enum = sa.Enum("active", "archived", name="uploadstatus")
-role_enum = sa.Enum("sales", "approver", "executive", "admin", name="roleenum")
-approval_status_enum = sa.Enum(
-    "pending", "approved", "rejected", name="approvalstatus"
+upload_status_enum = postgresql.ENUM("active", "archived", name="uploadstatus", create_type=False)
+role_enum = postgresql.ENUM("sales", "approver", "executive", "admin", name="roleenum", create_type=False)
+approval_status_enum = postgresql.ENUM(
+    "pending", "approved", "rejected", name="approvalstatus", create_type=False
 )
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    upload_type_enum.create(bind, checkfirst=True)
+    upload_status_enum.create(bind, checkfirst=True)
+
     op.create_table(
         "uploaded_files",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -54,7 +60,7 @@ def upgrade() -> None:
         sa.Column("file_size_bytes", sa.Integer(), nullable=False),
         sa.Column("source_uri", sa.String(length=1024), nullable=True),
         sa.Column("status", upload_status_enum, nullable=False),
-        sa.Column("meta_json", sa.JSON(), nullable=False),
+        sa.Column("meta_json", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["uploaded_by_user_id"], ["users.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
@@ -81,3 +87,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table("ai_recommendations")
     op.drop_table("uploaded_files")
+
+    bind = op.get_bind()
+    upload_status_enum.drop(bind, checkfirst=True)
+    upload_type_enum.drop(bind, checkfirst=True)

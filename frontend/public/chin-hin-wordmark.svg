@@ -1,0 +1,29 @@
+<svg width="660" height="160" viewBox="45 55 560 135" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title">
+  <title id="title">Chin Hin</title>
+  <g transform="translate(70 78) skewX(-14)">
+    <path d="M0 78L28 0H72L44 78H0Z" fill="#25215F"/>
+    <path d="M10 26L64 56L57 76L3 46L10 26Z" fill="#25215F"/>
+    <path d="M16 8L70 38L64 55L10 25L16 8Z" fill="#25215F"/>
+    <path d="M6 47L60 77L52 98L-2 68L6 47Z" fill="#25215F"/>
+    <path d="M11 34L66 65L60 82L5 51L11 34Z" fill="#E31E2F"/>
+  </g>
+  <g transform="translate(150 0) skewX(-7)">
+    <text
+      x="0"
+      y="150"
+      fill="#25215F"
+      font-family="Arial Black, Impact, Montserrat, sans-serif"
+      font-size="86"
+      font-weight="900"
+      letter-spacing="-7"
+    >CHIN HIN</text>
+  </g>
+  <text
+    x="560"
+    y="107"
+    fill="#25215F"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="18"
+    font-weight="700"
+  >TM</text>
+</svg>

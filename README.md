@@ -162,7 +162,34 @@ You want:
 TcpTestSucceeded : True
 ```
 
-### 2. Run Migrations And Seed Data
+### 2. Configure AI Provider
+
+For a free local setup, use Ollama. This needs no API key, but you must install Ollama and pull a local model first:
+
+```powershell
+ollama pull llama3.1:8b
+```
+
+Then configure:
+
+```text
+AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=llama3.1:8b
+```
+
+For a hosted paid setup, use a direct OpenAI API key:
+
+```text
+AI_PROVIDER=openai
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-5.4-mini
+OPENAI_BASE_URL=https://api.openai.com/v1
+```
+
+`llama3.1:8b` is the default free local model. `gpt-5.4-mini` remains the recommended hosted model because this app mostly needs structured JSON, document extraction, win-probability scoring, and negotiation guidance at practical latency and cost.
+
+### 3. Run Migrations And Seed Data
 
 ```powershell
 cd "backend"
@@ -171,7 +198,7 @@ python -m alembic upgrade head
 python -m app.scripts.seed_data
 ```
 
-### 3. Start The Backend
+### 4. Start The Backend
 
 ```powershell
 cd "backend"
@@ -179,7 +206,7 @@ cd "backend"
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-### 4. Start The Frontend
+### 5. Start The Frontend
 
 Open a second terminal:
 
@@ -189,7 +216,7 @@ npm install
 npm run dev
 ```
 
-### 5. Open The App
+### 6. Open The App
 
 - Frontend: `http://localhost:5173`
 - API docs: `http://localhost:8000/docs`
@@ -328,7 +355,7 @@ Key directories:
 
 ## AI Behavior
 
-The system uses configured Azure OpenAI / Foundry endpoints for recommendation and explanation workflows where available.
+The system uses local Ollama when `AI_PROVIDER=ollama`. It uses the OpenAI Responses API when `AI_PROVIDER=openai` and `OPENAI_API_KEY` is configured. Legacy Azure OpenAI / Foundry settings are still supported as a fallback for older deployments.
 
 If the external service is unavailable:
 - the system can use fallback logic for continuity

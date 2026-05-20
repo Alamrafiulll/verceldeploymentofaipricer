@@ -72,32 +72,32 @@ def seed() -> None:
         users = [
             User(
                 name="Sales Manager",
-                email="salesmanager@gmail.com",
-                password_hash=get_password_hash("123456"),
+                email="sales@chinhin.local",
+                password_hash=get_password_hash("Password123!"),
                 role=RoleEnum.sales,
                 approval_status=UserApprovalStatus.approved,
                 account_status=UserAccountStatus.active,
             ),
             User(
                 name="Sales Director",
-                email="salesdirector@gmail.com",
-                password_hash=get_password_hash("123456"),
+                email="approver@chinhin.local",
+                password_hash=get_password_hash("Password123!"),
                 role=RoleEnum.approver,
                 approval_status=UserApprovalStatus.approved,
                 account_status=UserAccountStatus.active,
             ),
             User(
                 name="Executive Viewer",
-                email="executiveviewer@gmail.com",
-                password_hash=get_password_hash("123456"),
+                email="executive@chinhin.local",
+                password_hash=get_password_hash("Password123!"),
                 role=RoleEnum.executive,
                 approval_status=UserApprovalStatus.approved,
                 account_status=UserAccountStatus.active,
             ),
             User(
-                name="Admin User",
-                email="admin@gmail.com",
-                password_hash=get_password_hash("123456"),
+                name="Admin chinhin",
+                email="admin@chinhin.local",
+                password_hash=get_password_hash("12345"),
                 role=RoleEnum.admin,
                 approval_status=UserApprovalStatus.approved,
                 account_status=UserAccountStatus.active,
@@ -381,9 +381,9 @@ def seed() -> None:
 
             rec = Recommendation(
                 quote_id=quote.id,
-                model_version="foundry-v1",
+                model_version="openai-gpt-5.4-mini",
                 feature_schema_version="schema-v1",
-                foundry_outputs_json={"seed": True},
+                xgb_outputs_json={"seed": True},
                 optimizer_outputs_json={"seed": True},
                 gpt_outputs_json={
                     "short_reason": "Seed recommendation for analytics demo.",

@@ -1,8 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react';
+import {
+  CheckCircle2,
+  Download,
+  FileCheck2,
+  FileJson,
+  FileText,
+  FileUp,
+  FolderOpen,
+  Plus,
+  RefreshCw,
+  Trash2,
+  UploadCloud,
+} from 'lucide-react';
 
 import { getSession } from '../lib/auth';
 import API from '../lib/api';
-import { AlertBanner, EmptyState, SectionHeader, StatusChip } from '../components/ui';
+import { AlertBanner, EmptyState, SectionHeader, StatusChip, SummaryCard } from '../components/ui';
+import { downloadJson, downloadUploadTemplate } from '../lib/downloads';
 
 interface UploadTypeInfo {
   type: string;
@@ -79,6 +93,25 @@ function createDraft(review: UploadReviewPayload): ReviewDraft {
   };
 }
 
+function titleCase(value: string) {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatDate(value: string | null) {
+  if (!value) return '-';
+  return new Date(value).toLocaleString();
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function safeDownloadName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'extraction';
+}
+
 export default function UploadCenterPage() {
   const role = getSession()?.user.role;
   const [types, setTypes] = useState<UploadTypeInfo[]>([]);
@@ -96,6 +129,31 @@ export default function UploadCenterPage() {
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
+  const selectedInfo = useMemo(
+    () => types.find((type) => type.type === selectedType),
+    [selectedType, types],
+  );
+
+  const canApprove = role === 'admin' || role === 'approver';
+  const activeCount = useMemo(() => files.filter((record) => record.status === 'active').length, [files]);
+  const reviewCount = useMemo(
+    () => files.filter((record) => record.status === 'draft' || record.status === 'needs_review').length,
+    [files],
+  );
+  const entityCount = useMemo(
+    () => files.reduce((sum, record) => sum + (record.extracted_entities_count ?? 0), 0),
+    [files],
+  );
+
+  const refreshFiles = useCallback(async () => {
+    try {
+      const res = await API.get<FileRecord[]>('/upload-center/files');
+      setFiles(res.data);
+    } catch {
+      /* keep current list */
+    }
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -109,19 +167,10 @@ export default function UploadCenterPage() {
           setSelectedType(typesRes.data[0].type);
         }
       } catch {
-        /* ignore */
+        setError('Unable to load upload center configuration.');
       }
     };
     void load();
-  }, []);
-
-  const refreshFiles = useCallback(async () => {
-    try {
-      const res = await API.get<FileRecord[]>('/upload-center/files');
-      setFiles(res.data);
-    } catch {
-      /* ignore */
-    }
   }, []);
 
   const loadReview = useCallback(async (fileId: string) => {
@@ -139,10 +188,35 @@ export default function UploadCenterPage() {
     }
   }, []);
 
-  const selectedInfo = useMemo(
-    () => types.find((type) => type.type === selectedType),
-    [selectedType, types],
-  );
+  const exportReview = useCallback(async (record?: FileRecord) => {
+    const fileId = record?.id ?? activeReview?.file_id;
+    if (!fileId) return;
+    setReviewError(null);
+    try {
+      const res = await API.get<UploadReviewPayload>(`/upload-center/files/${fileId}/review`);
+      const fileName = `${safeDownloadName(record?.file_name ?? res.data.file_name)}-extraction.json`;
+      downloadJson(fileName, res.data);
+    } catch (err: any) {
+      setReviewError(err?.response?.data?.detail || 'Unable to export extraction JSON.');
+    }
+  }, [activeReview?.file_id]);
+
+  const validateAndSetFile = (candidate: File | null) => {
+    if (!candidate) {
+      setFile(null);
+      return;
+    }
+    const ext = candidate.name.includes('.') ? `.${candidate.name.split('.').pop()?.toLowerCase()}` : '';
+    const allowed = selectedInfo?.extensions ?? [];
+    if (allowed.length > 0 && !allowed.includes(ext)) {
+      setError(`.${ext.replace('.', '') || 'unknown'} is not valid for ${selectedInfo?.label}. Accepted: ${allowed.join(', ')}`);
+      setFile(null);
+      return;
+    }
+    setError(null);
+    setUploadMessage(null);
+    setFile(candidate);
+  };
 
   const handleUpload = async () => {
     if (!file || !selectedType) return;
@@ -164,19 +238,16 @@ export default function UploadCenterPage() {
       setFile(null);
       void refreshFiles();
     } catch (err: any) {
-      setError(err?.response?.data?.detail || 'Upload failed');
+      setError(err?.response?.data?.detail || 'Upload failed.');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDrop = (event: React.DragEvent) => {
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     setDragOver(false);
-    if (event.dataTransfer.files?.[0]) {
-      setFile(event.dataTransfer.files[0]);
-      setUploadMessage(null);
-    }
+    validateAndSetFile(event.dataTransfer.files?.[0] ?? null);
   };
 
   const updateEntity = (index: number, field: 'type' | 'count' | 'samples', value: string) => {
@@ -262,407 +333,522 @@ export default function UploadCenterPage() {
     }
   };
 
-  const canApprove = role === 'admin' || role === 'approver';
-
   return (
-    <div className="space-y-6 p-1">
+    <div className="space-y-6">
       <SectionHeader
-        icon="📁"
+        kicker="File intelligence"
+        icon={<FileUp className="h-5 w-5 text-indigo-500" aria-hidden="true" />}
         title="Upload Center"
-        subtitle="Upload business documents, review what the system understood, and confirm the next workflow step."
-      />
-
-      <AlertBanner variant="tip" title="What To Do Next">
-        Choose the document category, upload the file, then confirm or correct the extraction before it becomes active in the pricing workflow.
-      </AlertBanner>
-
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="mb-3 text-sm font-semibold text-slate-700">Step 1: Choose document category</p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {types.map((type) => (
-            <button
-              key={type.type}
-              type="button"
-              className={`rounded-lg border-2 px-3 py-2.5 text-left transition-all ${
-                selectedType === type.type
-                  ? 'border-emerald-500 bg-emerald-50 shadow-sm'
-                  : 'border-slate-200 bg-white hover:border-slate-300'
-              }`}
-              onClick={() => {
-                setSelectedType(type.type);
-                setUploadMessage(null);
-              }}
-            >
-              <p className="text-xs font-semibold text-slate-800">{type.label}</p>
-              <p className="mt-0.5 text-[10px] text-slate-500">{type.extensions.join(', ')}</p>
-            </button>
-          ))}
-        </div>
-        {types.length === 0 && (
-          <p className="text-sm text-slate-400">No upload categories are available for your role.</p>
-        )}
-      </div>
-
-      {selectedInfo && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="mb-1 text-sm font-semibold text-slate-700">
-            Step 2: Upload {selectedInfo.label}
-          </p>
-          <p className="mb-3 text-xs text-slate-500">
-            Accepted formats: {selectedInfo.extensions.join(', ')}
-          </p>
-          <div
-            className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
-              dragOver
-                ? 'border-emerald-400 bg-emerald-50'
-                : 'border-slate-300 bg-slate-50 hover:border-slate-400'
-            }`}
-            onDragOver={(event) => {
-              event.preventDefault();
-              setDragOver(true);
-            }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-          >
-            <span className="text-3xl">📄</span>
-            <p className="mt-2 text-sm font-medium text-slate-600">
-              {file ? file.name : `Drag and drop your ${selectedInfo.label} here`}
-            </p>
-            {file && <p className="text-xs text-slate-400">({(file.size / 1024).toFixed(1)} KB)</p>}
-            <label className="mt-3 cursor-pointer rounded-lg bg-slate-200 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-300">
-              Browse Files
-              <input
-                type="file"
-                className="hidden"
-                accept={selectedInfo.extensions.join(',')}
-                onChange={(event) => {
-                  setFile(event.target.files?.[0] || null);
-                  setUploadMessage(null);
-                }}
-              />
-            </label>
-          </div>
+        subtitle="Upload business documents, validate extracted fields, and activate trusted files for pricing workflows."
+        action={
           <button
             type="button"
-            disabled={!file || uploading}
-            onClick={handleUpload}
-            className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+            onClick={() => void refreshFiles()}
+            className="btn-outline inline-flex items-center gap-2"
           >
-            {uploading ? 'Analyzing and Uploading...' : 'Upload and Analyze'}
+            <RefreshCw className="h-4 w-4 animate-spin-slow" aria-hidden="true" />
+            Refresh
           </button>
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-        </div>
-      )}
+        }
+      />
 
-      {uploadMessage && (
-        <AlertBanner variant="success" title="Upload Successful">
-          {uploadMessage}
-        </AlertBanner>
-      )}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <SummaryCard 
+          title="Uploads" 
+          value={files.length} 
+          subtitle="Files visible to your role" 
+          icon={<FolderOpen className="h-4 w-4 text-indigo-500" aria-hidden="true" />} 
+        />
+        <SummaryCard 
+          title="Needs Review" 
+          value={reviewCount} 
+          subtitle="Draft or review queue files" 
+          variant={reviewCount > 0 ? 'warning' : 'success'} 
+          icon={<FileCheck2 className="h-4 w-4 text-amber-500" aria-hidden="true" />} 
+        />
+        <SummaryCard 
+          title="Entities Extracted" 
+          value={entityCount} 
+          subtitle={`${activeCount} active files`} 
+          variant="info" 
+          icon={<FileText className="h-4 w-4 text-sky-500" aria-hidden="true" />} 
+        />
+      </div>
 
-      {activeReview && (
-        <div className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-800">Step 3: What the system understood</h3>
-            <p className="mt-2 text-sm text-slate-600">{activeReview.current_extraction.summary}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
-              <StatusChip status={activeReview.status} />
-              <StatusChip status={activeReview.review_status} />
-              <span className="text-slate-500">
-                Detected type: <strong>{activeReview.current_extraction.detected_type}</strong>
-              </span>
-              <span className="text-slate-500">
-                Confidence:{' '}
-                <strong>{(activeReview.current_extraction.confidence * 100).toFixed(0)}%</strong>
-              </span>
-              <span className="text-slate-500">
-                Business entities found:{' '}
-                <strong>{activeReview.current_extraction.entities_count}</strong>
-              </span>
+      {error && <AlertBanner variant="danger">{error}</AlertBanner>}
+      {uploadMessage && <AlertBanner variant="success" title="Upload Successful">{uploadMessage}</AlertBanner>}
+
+      <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+        <aside className="space-y-6">
+          {/* Document Type Selector Card */}
+          <section className="glass-card rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 to-purple-500 opacity-60" />
+            <div className="mb-4">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">1. Choose Document Type</h2>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Your role controls which file categories can be uploaded.</p>
             </div>
-            <p className="mt-3 text-sm text-slate-600">
-              <span className="font-semibold text-slate-700">Next step:</span> {activeReview.next_step}
-            </p>
 
-            {activeReview.current_extraction.entities.length > 0 && (
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-medium text-slate-500">Extracted business entities</p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {activeReview.current_extraction.entities.map((entity, index) => (
-                    <div key={`${entity.type}-${index}`} className="rounded-lg bg-slate-50 p-3">
-                      <p className="text-[11px] font-medium text-slate-500">{entity.type}</p>
-                      <p className="text-lg font-bold text-slate-800">{entity.count}</p>
-                      <p className="mt-1 truncate text-[10px] text-slate-400">
-                        {entity.samples.join(', ')}
-                      </p>
-                    </div>
-                  ))}
-                </div>
+            {types.length === 0 ? (
+              <EmptyState title="No upload categories" description="No upload categories are available for your role." />
+            ) : (
+              <div className="space-y-2">
+                {types.map((type) => (
+                  <button
+                    key={type.type}
+                    type="button"
+                    className={`w-full rounded-xl border p-3.5 text-left transition-all duration-300 ${
+                      selectedType === type.type
+                        ? 'border-indigo-500/30 bg-gradient-to-r from-indigo-600/90 to-purple-600/90 text-white shadow-md shadow-indigo-600/10 scale-[1.01]'
+                        : 'border-slate-200/50 bg-slate-500/5 text-slate-700 dark:border-slate-800/40 dark:text-slate-300 hover:border-indigo-500/30 hover:bg-slate-500/10'
+                    }`}
+                    onClick={() => {
+                      setSelectedType(type.type);
+                      setUploadMessage(null);
+                      setError(null);
+                      setFile(null);
+                    }}
+                  >
+                    <span className="block text-sm font-bold tracking-tight">{type.label}</span>
+                    <span className={`mt-1 block text-xs font-medium ${selectedType === type.type ? 'text-indigo-200' : 'text-slate-400 dark:text-slate-500'}`}>
+                      {type.extensions.map(e => e.toUpperCase()).join(', ')}
+                    </span>
+                  </button>
+                ))}
               </div>
             )}
-          </div>
+          </section>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Upload File Card */}
+          {selectedInfo && (
+            <section className="glass-card rounded-2xl p-6 shadow-xl relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-purple-500 to-pink-500 opacity-60" />
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">2. Upload Source File</h2>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{selectedInfo.label}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => downloadUploadTemplate(selectedInfo.type, selectedInfo.label)}
+                  className="btn-outline py-1.5 px-3 text-xs inline-flex items-center gap-1.5"
+                >
+                  <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                  Template
+                </button>
+              </div>
+
+              <div
+                className={`rounded-xl border-2 border-dashed px-5 py-8 text-center transition-all duration-300 ${
+                  dragOver 
+                    ? 'border-indigo-500 bg-indigo-500/10 dark:bg-indigo-500/20 shadow-inner' 
+                    : 'border-slate-300 dark:border-slate-800 bg-slate-500/5 hover:border-indigo-500 dark:hover:border-indigo-500 hover:bg-slate-500/10'
+                }`}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+              >
+                <div className="mx-auto w-12 h-12 rounded-full bg-indigo-500/10 dark:bg-indigo-500/20 flex items-center justify-center mb-3">
+                  <UploadCloud className="h-6 w-6 text-indigo-500 animate-pulse" aria-hidden="true" />
+                </div>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  {file ? file.name : `Drop ${selectedInfo.label} here`}
+                </p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  {file ? formatBytes(file.size) : `Accepted: ${selectedInfo.extensions.join(', ')}`}
+                </p>
+                <label className="mt-4 inline-flex cursor-pointer rounded-xl bg-slate-900 dark:bg-indigo-600 dark:hover:bg-indigo-500 hover:bg-slate-800 text-white px-4 py-2.5 text-xs font-bold transition duration-200 hover:shadow-lg hover:shadow-indigo-500/10 active:scale-[0.98]">
+                  Browse files
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept={selectedInfo.extensions.join(',')}
+                    onChange={(event) => validateAndSetFile(event.target.files?.[0] ?? null)}
+                  />
+                </label>
+              </div>
+
+              <button
+                type="button"
+                disabled={!file || uploading}
+                onClick={handleUpload}
+                className="mt-4 w-full btn-primary py-3 text-sm font-bold flex items-center justify-center gap-2"
+              >
+                {uploading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Analyzing and uploading...
+                  </>
+                ) : (
+                  <>
+                    <FileCheck2 className="h-4 w-4" />
+                    Upload and Analyze
+                  </>
+                )}
+              </button>
+            </section>
+          )}
+        </aside>
+
+        {/* Review Panel */}
+        <section className="min-w-0 glass-card rounded-2xl shadow-xl relative overflow-hidden flex flex-col">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-pink-500 via-indigo-500 to-teal-500 opacity-60" />
+          
+          <div className="border-b border-slate-200/50 dark:border-slate-800/40 p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h3 className="text-sm font-semibold text-slate-800">Step 4: Review and confirm</h3>
-                <p className="text-xs text-slate-500">
-                  Edit the extracted summary, entities, and suggested rules before the document moves forward.
+                <h2 className="text-base font-bold text-slate-900 dark:text-white">3. Review Extraction</h2>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Confirm the summary, business entities, and suggested rules before downstream pricing uses the file.
                 </p>
               </div>
-              {reviewLoading && <p className="text-xs text-slate-500">Loading review...</p>}
+              {activeReview && (
+                <button
+                  type="button"
+                  onClick={() => void exportReview()}
+                  className="btn-outline inline-flex items-center gap-2 py-2 px-3 text-xs"
+                >
+                  <FileJson className="h-4 w-4 text-indigo-500" aria-hidden="true" />
+                  Export JSON
+                </button>
+              )}
             </div>
+          </div>
 
-            {reviewError && (
-              <div className="mt-3">
-                <AlertBanner variant="danger">{reviewError}</AlertBanner>
+          <div className="p-6 flex-1 space-y-6">
+            {reviewLoading && (
+              <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                <RefreshCw className="h-8 w-8 text-indigo-500 animate-spin" />
+                <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">Loading extraction payload...</p>
               </div>
             )}
-            {reviewMessage && (
-              <div className="mt-3">
-                <AlertBanner variant="success">{reviewMessage}</AlertBanner>
-              </div>
-            )}
+            
+            {reviewError && <AlertBanner variant="danger">{reviewError}</AlertBanner>}
+            {reviewMessage && <AlertBanner variant="success">{reviewMessage}</AlertBanner>}
 
-            {reviewDraft && (
-              <div className="mt-4 space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="space-y-1 text-sm">
-                    <span className="text-slate-600">Plain-language summary</span>
-                    <textarea
-                      className="input min-h-28"
-                      value={reviewDraft.summary}
-                      onChange={(event) =>
-                        setReviewDraft((prev) =>
-                          prev ? { ...prev, summary: event.target.value } : prev,
-                        )
-                      }
-                    />
-                  </label>
-                  <div className="space-y-4">
-                    <label className="space-y-1 text-sm">
-                      <span className="text-slate-600">Detected document type</span>
-                      <input
-                        className="input"
-                        value={reviewDraft.detected_type}
-                        onChange={(event) =>
-                          setReviewDraft((prev) =>
-                            prev ? { ...prev, detected_type: event.target.value } : prev,
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="space-y-1 text-sm">
-                      <span className="text-slate-600">Recommendation confidence</span>
-                      <input
-                        className="input"
-                        type="number"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={reviewDraft.confidence}
-                        onChange={(event) =>
-                          setReviewDraft((prev) =>
-                            prev ? { ...prev, confidence: event.target.value } : prev,
-                          )
-                        }
-                      />
-                    </label>
+            {!activeReview ? (
+              <div className="py-8">
+                <EmptyState
+                  icon={<FileText className="h-8 w-8 text-slate-400" aria-hidden="true" />}
+                  title="No file selected"
+                  description="Upload a document or choose a record from history to review extracted pricing intelligence."
+                />
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* File summary spotlight */}
+                <div className="rounded-2xl border border-slate-200/50 dark:border-slate-800/40 bg-slate-500/5 p-5 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 bottom-0 w-[4px] bg-indigo-500" />
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-white">{activeReview.file_name}</p>
+                      <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300 font-medium">
+                        {activeReview.current_extraction.summary}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <StatusChip status={activeReview.status} />
+                      <StatusChip status={activeReview.review_status} />
+                    </div>
                   </div>
+                  
+                  <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                    <ReviewMetric label="Detected type" value={activeReview.current_extraction.detected_type} />
+                    <ReviewMetric label="Confidence" value={`${(activeReview.current_extraction.confidence * 100).toFixed(0)}%`} />
+                    <ReviewMetric label="Entities" value={`${activeReview.current_extraction.entities_count}`} />
+                  </div>
+                  
+                  <p className="mt-4 text-xs text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1.5">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                    <span>Next step:</span> 
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">{activeReview.next_step}</span>
+                  </p>
                 </div>
 
-                <div>
-                  <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-700">Business entities</p>
-                    <button
-                      type="button"
-                      onClick={addEntityRow}
-                      className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700"
-                    >
-                      Add Entity
-                    </button>
+                {/* Extracted business entities cards */}
+                {activeReview.current_extraction.entities.length > 0 && (
+                  <div>
+                    <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                      Extracted Business Entities
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      {activeReview.current_extraction.entities.map((entity, index) => (
+                        <div key={`${entity.type}-${index}`} className="rounded-xl border border-slate-200/50 dark:border-slate-800/40 bg-white/40 dark:bg-slate-900/40 p-4 transition-all duration-300 hover:border-indigo-500/30">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                            {entity.type}
+                          </p>
+                          <p className="mt-1 text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                            {entity.count}
+                          </p>
+                          <p className="mt-1.5 truncate text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                            {entity.samples.join(', ') || 'No samples'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-3">
-                    {reviewDraft.entities.map((entity, index) => (
-                      <div
-                        key={`entity-row-${index}`}
-                        className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-[1.4fr_0.6fr_1.6fr_auto]"
-                      >
-                        <input
-                          className="input"
-                          placeholder="Entity type"
-                          value={entity.type}
-                          onChange={(event) => updateEntity(index, 'type', event.target.value)}
+                )}
+
+                {/* Corrected fields input form */}
+                {reviewDraft && (
+                  <div className="space-y-6 pt-4 border-t border-slate-200/50 dark:border-slate-800/40">
+                    <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+                      <label className="space-y-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        <span>Plain-language summary</span>
+                        <textarea
+                          className="input min-h-32"
+                          value={reviewDraft.summary}
+                          onChange={(event) =>
+                            setReviewDraft((prev) => (prev ? { ...prev, summary: event.target.value } : prev))
+                          }
                         />
-                        <input
-                          className="input"
-                          type="number"
-                          min={0}
-                          value={entity.count}
-                          onChange={(event) => updateEntity(index, 'count', event.target.value)}
-                        />
-                        <input
-                          className="input"
-                          placeholder="Samples separated by commas"
-                          value={entity.samples.join(', ')}
-                          onChange={(event) => updateEntity(index, 'samples', event.target.value)}
-                        />
+                      </label>
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                        <label className="space-y-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          <span>Detected document type</span>
+                          <input
+                            className="input"
+                            value={reviewDraft.detected_type}
+                            onChange={(event) =>
+                              setReviewDraft((prev) =>
+                                prev ? { ...prev, detected_type: event.target.value } : prev,
+                              )
+                            }
+                          />
+                        </label>
+                        <label className="space-y-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          <span>Confidence score</span>
+                          <input
+                            className="input"
+                            type="number"
+                            min={0}
+                            max={1}
+                            step={0.01}
+                            value={reviewDraft.confidence}
+                            onChange={(event) =>
+                              setReviewDraft((prev) =>
+                                prev ? { ...prev, confidence: event.target.value } : prev,
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Interactive entity editor */}
+                    <div>
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                          Correct Business Entities
+                        </p>
                         <button
                           type="button"
-                          onClick={() => removeEntityRow(index)}
-                          className="rounded-md border border-rose-300 px-3 py-2 text-xs font-medium text-rose-700"
+                          onClick={addEntityRow}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-500/20 bg-indigo-500/5 px-2.5 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
                         >
-                          Remove
+                          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                          Add Entity
                         </button>
                       </div>
-                    ))}
-                    {reviewDraft.entities.length === 0 && (
-                      <p className="text-sm text-slate-500">No entities captured yet. Add rows if you need manual corrections.</p>
-                    )}
+                      
+                      <div className="space-y-3">
+                        {reviewDraft.entities.map((entity, index) => (
+                          <div
+                            key={`entity-row-${index}`}
+                            className="grid gap-3 rounded-xl border border-slate-200/50 dark:border-slate-800/40 bg-slate-500/5 p-3.5 md:grid-cols-[1.2fr_0.45fr_1.6fr_auto]"
+                          >
+                            <input
+                              className="input py-2"
+                              placeholder="Entity type"
+                              value={entity.type}
+                              onChange={(event) => updateEntity(index, 'type', event.target.value)}
+                            />
+                            <input
+                              className="input py-2"
+                              type="number"
+                              min={0}
+                              value={entity.count}
+                              onChange={(event) => updateEntity(index, 'count', event.target.value)}
+                            />
+                            <input
+                              className="input py-2"
+                              placeholder="Samples separated by commas"
+                              value={entity.samples.join(', ')}
+                              onChange={(event) => updateEntity(index, 'samples', event.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeEntityRow(index)}
+                              className="inline-flex items-center justify-center rounded-xl border border-rose-300/30 bg-rose-500/5 px-3.5 py-2 text-rose-600 hover:bg-rose-500 hover:text-white transition-all duration-200"
+                              aria-label="Remove entity"
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          </div>
+                        ))}
+                        {reviewDraft.entities.length === 0 && (
+                          <p className="rounded-xl border border-slate-200/50 dark:border-slate-800/40 bg-slate-500/5 p-4 text-xs font-medium text-slate-500 dark:text-slate-400 text-center">
+                            No entities captured yet. Add rows if manual correction is required.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="space-y-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        <span>Suggested business rules</span>
+                        <textarea
+                          className="input min-h-32"
+                          value={reviewDraft.suggested_rules_text}
+                          onChange={(event) =>
+                            setReviewDraft((prev) =>
+                              prev ? { ...prev, suggested_rules_text: event.target.value } : prev,
+                            )
+                          }
+                          placeholder="One suggested rule per line"
+                        />
+                      </label>
+                      <label className="space-y-2 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        <span>Review notes</span>
+                        <textarea
+                          className="input min-h-32"
+                          value={reviewDraft.review_notes}
+                          onChange={(event) =>
+                            setReviewDraft((prev) => (prev ? { ...prev, review_notes: event.target.value } : prev))
+                          }
+                          placeholder="Record corrections, assumptions, or business context"
+                        />
+                      </label>
+                    </div>
+
+                    <details className="rounded-xl border border-slate-200/50 dark:border-slate-800/40 bg-slate-500/5 overflow-hidden transition-all duration-200">
+                      <summary className="cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 p-4 transition-colors select-none">
+                        Source Text Preview
+                      </summary>
+                      <div className="p-4 border-t border-slate-200/30 dark:border-slate-800/30 bg-slate-950/40 dark:bg-slate-950/80">
+                        <pre className="max-h-72 overflow-auto whitespace-pre-wrap font-mono text-[10px] leading-relaxed text-slate-600 dark:text-indigo-300/80 sidebar-scroll">
+                          {activeReview.current_extraction.text_preview || 'No text preview available.'}
+                        </pre>
+                      </div>
+                    </details>
+
+                    {/* Action buttons */}
+                    <div className="flex flex-wrap gap-2.5 border-t border-slate-200/50 dark:border-slate-800/40 pt-5">
+                      <ReviewActionButton disabled={reviewSaving} onClick={() => saveReview('save_draft')}>
+                        {reviewSaving ? 'Saving...' : 'Save Draft'}
+                      </ReviewActionButton>
+                      <ReviewActionButton
+                        disabled={reviewSaving}
+                        onClick={() => saveReview('confirm_and_save')}
+                        variant="primary"
+                      >
+                        {reviewSaving ? 'Saving...' : 'Confirm and Save'}
+                      </ReviewActionButton>
+                      <ReviewActionButton
+                        disabled={reviewSaving}
+                        onClick={() => saveReview('submit_for_review')}
+                        variant="warning"
+                      >
+                        {reviewSaving ? 'Saving...' : 'Send for Review'}
+                      </ReviewActionButton>
+                      {canApprove && (
+                        <>
+                          <ReviewActionButton
+                            disabled={reviewSaving}
+                            onClick={() => saveReview('activate')}
+                            variant="success"
+                          >
+                            {reviewSaving ? 'Saving...' : 'Activate'}
+                          </ReviewActionButton>
+                          <ReviewActionButton
+                            disabled={reviewSaving}
+                            onClick={() => saveReview('reject')}
+                            variant="danger"
+                          >
+                            {reviewSaving ? 'Saving...' : 'Reject'}
+                          </ReviewActionButton>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="space-y-1 text-sm">
-                    <span className="text-slate-600">Suggested business rules</span>
-                    <textarea
-                      className="input min-h-28"
-                      value={reviewDraft.suggested_rules_text}
-                      onChange={(event) =>
-                        setReviewDraft((prev) =>
-                          prev ? { ...prev, suggested_rules_text: event.target.value } : prev,
-                        )
-                      }
-                      placeholder="One suggested rule per line"
-                    />
-                  </label>
-                  <label className="space-y-1 text-sm">
-                    <span className="text-slate-600">Review notes</span>
-                    <textarea
-                      className="input min-h-28"
-                      value={reviewDraft.review_notes}
-                      onChange={(event) =>
-                        setReviewDraft((prev) =>
-                          prev ? { ...prev, review_notes: event.target.value } : prev,
-                        )
-                      }
-                      placeholder="Record any corrections, assumptions, or business context here"
-                    />
-                  </label>
-                </div>
-
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Source Text Preview
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
-                    {activeReview.current_extraction.text_preview || 'No text preview available.'}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    type="button"
-                    disabled={reviewSaving}
-                    onClick={() => saveReview('save_draft')}
-                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
-                  >
-                    {reviewSaving ? 'Saving...' : 'Save Draft'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={reviewSaving}
-                    onClick={() => saveReview('confirm_and_save')}
-                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                  >
-                    {reviewSaving ? 'Saving...' : 'Confirm and Save'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={reviewSaving}
-                    onClick={() => saveReview('submit_for_review')}
-                    className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 disabled:opacity-50"
-                  >
-                    {reviewSaving ? 'Saving...' : 'Send for Review'}
-                  </button>
-                  {canApprove && (
-                    <>
-                      <button
-                        type="button"
-                        disabled={reviewSaving}
-                        onClick={() => saveReview('activate')}
-                        className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 disabled:opacity-50"
-                      >
-                        {reviewSaving ? 'Saving...' : 'Activate Document'}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={reviewSaving}
-                        onClick={() => saveReview('reject')}
-                        className="rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-800 disabled:opacity-50"
-                      >
-                        {reviewSaving ? 'Saving...' : 'Reject Document'}
-                      </button>
-                    </>
-                  )}
-                </div>
+                )}
               </div>
             )}
           </div>
-        </div>
-      )}
+        </section>
+      </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="mb-3 text-sm font-semibold text-slate-800">Upload history</h3>
+      {/* History Card */}
+      <section className="glass-card rounded-2xl shadow-xl overflow-hidden relative">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-teal-500 to-indigo-500 opacity-60" />
+        <div className="p-6 border-b border-slate-200/50 dark:border-slate-800/40">
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">Upload History</h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Review previous files, continue extraction edits, or export the audit payload.</p>
+        </div>
+
         {files.length === 0 ? (
-          <EmptyState
-            icon="📂"
-            title="No uploads yet"
-            description="Upload your first business document to start smart document understanding and downstream pricing analysis."
-          />
+          <div className="p-8">
+            <EmptyState
+              icon={<FolderOpen className="h-8 w-8 text-slate-400" aria-hidden="true" />}
+              title="No uploads yet"
+              description="Upload your first business document to start document understanding and downstream pricing analysis."
+            />
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[900px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-left text-xs text-slate-500">
-                  <th className="pb-2 font-medium">File</th>
-                  <th className="pb-2 font-medium">Category</th>
-                  <th className="pb-2 font-medium">Status</th>
-                  <th className="pb-2 font-medium">Entities</th>
-                  <th className="pb-2 font-medium">Date</th>
-                  <th className="pb-2 font-medium">Action</th>
+                <tr className="border-b border-slate-200/50 dark:border-slate-800/40 bg-slate-500/5 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <th className="px-6 py-4">File</th>
+                  <th className="px-6 py-4">Category</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Entities</th>
+                  <th className="px-6 py-4">Uploaded</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {files.map((record) => (
-                  <tr key={record.id} className="border-b border-slate-50">
-                    <td className="py-2">
-                      <p className="font-medium text-slate-800">{record.file_name}</p>
-                      <p className="text-xs text-slate-500">{record.next_step}</p>
+                  <tr key={record.id} className="border-b border-slate-100/50 dark:border-slate-800/30 hover:bg-slate-500/5 transition-colors last:border-0">
+                    <td className="px-6 py-4">
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{record.file_name}</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">{record.next_step}</p>
                     </td>
-                    <td className="py-2 text-slate-600">
-                      {record.upload_type.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}
+                    <td className="px-6 py-4 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      {titleCase(record.upload_type)}
                     </td>
-                    <td className="py-2">
-                      <div className="flex flex-wrap gap-2">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1.5">
                         <StatusChip status={record.status} />
-                        {record.review_status ? (
-                          <StatusChip status={record.review_status} />
-                        ) : null}
+                        {record.review_status ? <StatusChip status={record.review_status} /> : null}
                       </div>
                     </td>
-                    <td className="py-2 text-slate-600">{record.extracted_entities_count ?? '-'}</td>
-                    <td className="py-2 text-xs text-slate-500">
-                      {record.created_at ? new Date(record.created_at).toLocaleDateString() : '-'}
+                    <td className="px-6 py-4 text-xs font-bold text-slate-700 dark:text-slate-300">
+                      {record.extracted_entities_count ?? '-'}
                     </td>
-                    <td className="py-2">
-                      <button
-                        type="button"
-                        onClick={() => void loadReview(record.id)}
-                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700"
-                      >
-                        Review
-                      </button>
+                    <td className="px-6 py-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+                      {formatDate(record.created_at)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void loadReview(record.id)}
+                          className="btn-outline py-1.5 px-3 text-xs"
+                        >
+                          Review
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void exportReview(record)}
+                          className="btn-outline inline-flex items-center gap-1.5 py-1.5 px-3 text-xs"
+                        >
+                          <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                          Export
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -670,7 +856,53 @@ export default function UploadCenterPage() {
             </table>
           </div>
         )}
-      </div>
+      </section>
+
+      <AlertBanner variant="tip" title="Governance Workflow">
+        Save draft for incomplete extraction, confirm and save when the parsed content is correct, send for review when
+        governance approval is needed, and activate only when the file should influence pricing decisions.
+      </AlertBanner>
     </div>
+  );
+}
+
+function ReviewMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200/50 dark:border-slate-800/40 bg-white/40 dark:bg-slate-900/40 p-3.5">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-1 truncate text-xs font-bold text-slate-800 dark:text-slate-100">{value}</p>
+    </div>
+  );
+}
+
+function ReviewActionButton({
+  children,
+  onClick,
+  disabled,
+  variant = 'default',
+}: {
+  children: string;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: 'default' | 'primary' | 'warning' | 'success' | 'danger';
+}) {
+  const classes = {
+    default: 'border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/60',
+    primary: 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-600/10 hover:from-indigo-50 hover:to-violet-500 hover:shadow-lg active:scale-[0.98]',
+    warning: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/10 hover:from-amber-400 hover:to-orange-400 hover:shadow-lg active:scale-[0.98]',
+    success: 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/10 hover:from-emerald-500 hover:to-teal-500 hover:shadow-lg active:scale-[0.98]',
+    danger: 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-md shadow-rose-600/10 hover:from-rose-500 hover:to-red-500 hover:shadow-lg active:scale-[0.98]',
+  };
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition-all duration-200 disabled:opacity-40 disabled:pointer-events-none ${classes[variant]}`}
+    >
+      {variant === 'success' ? <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+      {children}
+    </button>
   );
 }
