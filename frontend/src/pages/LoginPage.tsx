@@ -5,7 +5,7 @@ import api from '../lib/api';
 import { defaultRouteByRole, setSession } from '../lib/auth';
 import { applyTheme, getThemeForUser } from '../lib/theme';
 import type { Role, UserMe } from '../types/api';
-import ChinHinLogo from '../components/ChinHinLogo';
+import RevenueMindLogo from '../components/RevenueMindLogo';
 
 const BYPASS_USERS: Record<Role, UserMe> = {
   sales: {
@@ -120,14 +120,14 @@ export default function LoginPage() {
         <div className="absolute bottom-40 right-0 h-64 w-64 rounded-full bg-violet-500/10 blur-[120px]" />
 
         <div className="relative z-10 p-10">
-          <ChinHinLogo className="p-3 shadow-lg" imageClassName="h-16 w-56" />
+          <RevenueMindLogo className="p-3 shadow-lg" imageClassName="h-16 w-56" />
           
           <div className="mt-16">
             <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-semibold tracking-wider text-indigo-400 border border-indigo-500/20 uppercase">
               AI Command Suite
             </span>
             <h2 className="mt-4 font-display text-4xl font-extrabold leading-tight tracking-tight text-white">
-              Chin Hin <br />
+              RevenueMind <br />
               <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-indigo-400 bg-clip-text text-transparent">
                 Pricing Copilot
               </span>
@@ -159,7 +159,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 p-10 border-t border-slate-900/60 bg-slate-950/20">
           <p className="text-[11px] text-slate-600">
-            Â© 2026 Chin Hin Group Berhad. Enterprise control tower suite.
+            © 2026 RevenueMind. Enterprise control tower suite.
           </p>
         </div>
       </div>
@@ -173,11 +173,11 @@ export default function LoginPage() {
         <div className="w-full max-w-lg glass-card rounded-3xl p-8 border border-slate-800/80 bg-slate-900/40 shadow-2xl relative z-10">
           {/* Mobile logo */}
           <div className="mb-8 lg:hidden">
-            <ChinHinLogo className="border border-slate-800 p-2 shadow-sm" imageClassName="h-10 w-40" />
+            <RevenueMindLogo className="border border-slate-800 p-2 shadow-sm" imageClassName="h-10 w-40" />
           </div>
 
           <h1 className="font-display text-3xl font-extrabold text-white tracking-tight">System Control Tower</h1>
-          <p className="mt-2 text-sm text-slate-400">Authenticating user node for Chin Hin Group</p>
+          <p className="mt-2 text-sm text-slate-400">Authenticating user node for RevenueMind</p>
 
           {authBypassEnabled ? (
             <div className="mt-8 space-y-4">

@@ -1,8 +1,8 @@
-# Chin Hin AI Pricing Strategist User Guide
+# RevenueMind User Guide
 
 ## Purpose
 
-Chin Hin AI Pricing Strategist helps business users make faster, safer, and more explainable pricing decisions. It combines uploaded business documents, AI recommendations, finance logic, approval governance, and decision traceability in one platform.
+RevenueMind helps business users make faster, safer, and more explainable pricing decisions. It combines uploaded business documents, AI recommendations, finance logic, approval governance, and decision traceability in one platform.
 
 ## Who Uses The System
 
@@ -211,4 +211,4 @@ Check:
 
 ## Summary
 
-Chin Hin AI Pricing Strategist helps users upload business documents, convert them into pricing controls, generate explainable recommendations, control leakage, govern approvals, and maintain full business traceability.
+RevenueMind helps users upload business documents, convert them into pricing controls, generate explainable recommendations, control leakage, govern approvals, and maintain full business traceability.

@@ -32,6 +32,8 @@ import type {
   AdminUser,
   AuditLog,
   DataQuality,
+  EnterpriseReadiness,
+  EnterpriseReadinessCheck,
   GovernanceSummary,
   ModelRun,
   ReviewQueueItem,
@@ -41,7 +43,7 @@ import type {
   UserAccountStatus,
 } from '../types/api';
 
-type AdminView = 'control' | 'rules-files' | 'people' | 'observability';
+type AdminView = 'control' | 'enterprise' | 'rules-files' | 'people' | 'observability';
 
 const moneyFormatter = new Intl.NumberFormat('en-MY', {
   style: 'currency',
@@ -73,6 +75,12 @@ const WORKSTREAMS: Array<{
     label: 'Control Center',
     description: 'Health, queues, and priorities',
     icon: <Gauge className="h-4 w-4" aria-hidden="true" />,
+  },
+  {
+    id: 'enterprise',
+    label: 'Enterprise',
+    description: 'Readiness and go-live controls',
+    icon: <ShieldCheck className="h-4 w-4" aria-hidden="true" />,
   },
   {
     id: 'rules-files',
@@ -107,6 +115,19 @@ const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleS
 
 const formatPercent = (value?: number | null) =>
   value === null || value === undefined ? '-' : `${(value * 100).toFixed(1)}%`;
+
+function readinessStatusVariant(status?: EnterpriseReadiness['status']): 'success' | 'warning' | 'danger' | 'info' {
+  if (status === 'enterprise_ready') return 'success';
+  if (status === 'attention_needed') return 'warning';
+  if (status === 'not_ready') return 'danger';
+  return 'info';
+}
+
+function readinessCheckVariant(status: EnterpriseReadinessCheck['status']): 'success' | 'warning' | 'danger' {
+  if (status === 'pass') return 'success';
+  if (status === 'warning') return 'warning';
+  return 'danger';
+}
 
 function isSuccessfulModelRun(status: string) {
   const normalized = status.toLowerCase();
@@ -173,6 +194,10 @@ export default function AdminPage() {
     queryKey: ['admin', 'data-quality'],
     queryFn: async () => (await api.get<DataQuality>('/admin/data-quality')).data,
   });
+  const enterpriseReadiness = useQuery({
+    queryKey: ['admin', 'enterprise-readiness'],
+    queryFn: async () => (await api.get<EnterpriseReadiness>('/admin/enterprise-readiness')).data,
+  });
 
   const saveRule = useMutation({
     mutationFn: async (payload: {
@@ -223,14 +248,14 @@ export default function AdminPage() {
 
   const resetPassword = useMutation({
     mutationFn: async (payload: { userId: string; newPassword?: string }) =>
-      api.post<{ user_id: string; email: string; generated_password: string }>(
+      api.post<{ user_id: string; email: string; message: string }>(
         `/admin/users/${payload.userId}/reset-password`,
         {
           new_password: payload.newPassword?.trim() || null,
         },
       ),
     onSuccess: (response) => {
-      setStatus(`Password reset for ${response.data.email}. Visible password: ${response.data.generated_password}`);
+      setStatus(`Password reset for ${response.data.email}. ${response.data.message}`);
       queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
     },
     onError: () => setStatus('Failed to reset password.'),
@@ -239,12 +264,14 @@ export default function AdminPage() {
   const canCreateUser = userForm.name.trim() && userForm.email.trim() && userForm.password.length >= 6;
   const governance = governanceSummary.data;
   const quality = dataQuality.data;
+  const readiness = enterpriseReadiness.data;
   const ruleRows = rules.data ?? [];
   const logRows = logs.data ?? [];
   const modelRunRows = modelRuns.data ?? [];
   const userRows = users.data ?? [];
   const recommendationRows = aiRecommendations.data ?? [];
   const queueRows = reviewQueue.data ?? [];
+  const readinessFindings = readiness?.checks.filter((check) => check.status !== 'pass').length ?? 0;
 
   const totalIssues = useMemo(() => {
     if (!governance && !quality) return 0;
@@ -256,9 +283,10 @@ export default function AdminPage() {
       (quality?.upload_parse_failures ?? 0) +
       (quality?.uploads_needing_review ?? 0) +
       (quality?.reviews_pending_activation ?? 0) +
-      (quality?.recommendations_with_fallback ?? 0)
+      (quality?.recommendations_with_fallback ?? 0) +
+      readinessFindings
     );
-  }, [governance, quality]);
+  }, [governance, quality, readinessFindings]);
 
   const attentionItems = useMemo(
     () => [
@@ -368,8 +396,9 @@ export default function AdminPage() {
               )}
             </span>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-4">
             <DarkMetric label="Open Signals" value={totalIssues.toString()} />
+            <DarkMetric label="Readiness" value={readiness ? `${readiness.score}%` : '-'} />
             <DarkMetric label="Rules" value={ruleRows.length.toString()} />
             <DarkMetric label="Employees" value={userRows.length.toString()} />
           </div>
@@ -395,7 +424,15 @@ export default function AdminPage() {
       </div>
 
       {governance ? (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <SummaryCard
+            title="Enterprise Score"
+            value={readiness ? `${readiness.score}%` : '-'}
+            subtitle={readiness ? label(readiness.status) : 'Loading readiness'}
+            variant={readinessStatusVariant(readiness?.status)}
+            icon={<ShieldCheck className="h-4 w-4" aria-hidden="true" />}
+            onClick={() => setActiveView('enterprise')}
+          />
           <SummaryCard
             title="Upload Reviews"
             value={governance.pending_upload_reviews}
@@ -449,6 +486,10 @@ export default function AdminPage() {
           reviewQueue={queueRows}
           onOpenView={setActiveView}
         />
+      ) : null}
+
+      {activeView === 'enterprise' ? (
+        <EnterpriseReadinessPanel data={readiness} loading={enterpriseReadiness.isLoading} />
       ) : null}
 
       {activeView === 'rules-files' ? (
@@ -517,7 +558,7 @@ export default function AdminPage() {
 
 function WorkstreamNav({ activeView, onChange }: { activeView: AdminView; onChange: (view: AdminView) => void }) {
   return (
-    <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm md:grid-cols-4">
+    <div className="grid gap-2 rounded-lg border border-slate-200 bg-white p-2 shadow-sm md:grid-cols-5">
       {WORKSTREAMS.map((item) => {
         const active = activeView === item.id;
         return (
@@ -655,6 +696,106 @@ function ControlCenter({
             </div>
           )}
         </section>
+      </div>
+    </div>
+  );
+}
+
+function EnterpriseReadinessPanel({
+  data,
+  loading,
+}: {
+  data?: EnterpriseReadiness;
+  loading: boolean;
+}) {
+  if (loading) {
+    return <LoadingPanel label="Loading enterprise readiness..." />;
+  }
+
+  if (!data) {
+    return (
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <EmptyState
+          icon={<ShieldCheck className="h-6 w-6" aria-hidden="true" />}
+          title="Readiness unavailable"
+          description="Refresh admin data to load enterprise readiness checks."
+        />
+      </section>
+    );
+  }
+
+  const groupedChecks = data.checks.reduce<Record<string, EnterpriseReadinessCheck[]>>((acc, check) => {
+    acc[check.category] = acc[check.category] ? [...acc[check.category], check] : [check];
+    return acc;
+  }, {});
+  const openChecks = data.checks.filter((check) => check.status !== 'pass');
+
+  return (
+    <div className="space-y-5">
+      <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="grid gap-5 p-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Enterprise Score</p>
+            <p className="mt-3 text-5xl font-semibold text-slate-950">{data.score}%</p>
+            <div className="mt-3">
+              <StatusChip status={label(data.status)} variant={readinessStatusVariant(data.status)} size="md" />
+            </div>
+            <p className="mt-4 text-sm leading-6 text-slate-600">{data.summary}</p>
+          </div>
+
+          <div>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">Go-Live Control Map</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  Security, deployment, data governance, AI governance, and commercial controls are scored from live
+                  system configuration and records.
+                </p>
+              </div>
+              <StatusChip
+                status={`${openChecks.length} open checks`}
+                variant={openChecks.length > 0 ? 'warning' : 'success'}
+                size="md"
+              />
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              {Object.entries(data.categories).map(([category, value]) => (
+                <ReadinessRow key={category} label={category} value={value} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        {Object.entries(groupedChecks).map(([category, checks]) => (
+          <section key={category} className="rounded-lg border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-base font-semibold text-slate-950">{category}</h3>
+                <ReadinessRow label="Category score" value={data.categories[category] ?? null} />
+              </div>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {checks.map((check) => (
+                <div key={check.id} className="p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-950">{check.label}</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{check.detail}</p>
+                    </div>
+                    <StatusChip status={check.status} variant={readinessCheckVariant(check.status)} />
+                  </div>
+                  {check.action ? (
+                    <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                      {check.action}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   );

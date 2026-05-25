@@ -1,6 +1,6 @@
-# Chin Hin AI Pricing Strategist
+# RevenueMind
 
-Chin Hin AI Pricing Strategist is an enterprise pricing control tower for pricing decisions, approvals, document understanding, market comparison, and governance. It is designed for business users, not developers.
+RevenueMind is an enterprise pricing control tower for pricing decisions, approvals, document understanding, market comparison, and governance. It is designed for business users, not developers.
 
 The system combines:
 - AI pricing recommendation
@@ -16,7 +16,7 @@ The system combines:
 
 ## What The System Does
 
-The platform helps Chin Hin replace fragmented pricing work across Excel files, CSVs, PDFs, memos, approval sheets, rebate terms, campaign notices, and manual judgment.
+The platform helps RevenueMind replace fragmented pricing work across Excel files, CSVs, PDFs, memos, approval sheets, rebate terms, campaign notices, and manual judgment.
 
 Main outcomes:
 - faster quote decisions

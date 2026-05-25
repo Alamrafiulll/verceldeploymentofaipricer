@@ -1,6 +1,6 @@
 # 10-Minute Demo Script
 
-This script is designed for a live walkthrough of the Chin Hin AI Pricing Strategist. It covers all four actors in under 10 minutes.
+This script is designed for a live walkthrough of the RevenueMind. It covers all four actors in under 10 minutes.
 
 ## Demo Objective
 
@@ -141,4 +141,4 @@ Say:
 
 Use this closing line:
 
-`Chin Hin AI Pricing Strategist is not just a pricing dashboard. It is a pricing control tower that reads business documents, enforces policy, protects margin, reduces leakage, and gives every actor the context they need to act with confidence.`
+`RevenueMind is not just a pricing dashboard. It is a pricing control tower that reads business documents, enforces policy, protects margin, reduces leakage, and gives every actor the context they need to act with confidence.`

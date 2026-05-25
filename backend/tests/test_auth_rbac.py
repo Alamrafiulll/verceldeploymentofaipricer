@@ -86,7 +86,8 @@ def test_admin_can_reset_and_delete_user(client: TestClient, seeded_users):
         headers={'Authorization': f'Bearer {admin_token}'},
     )
     assert reset.status_code == 200
-    assert reset.json()['generated_password'] == 'New123456'
+    assert reset.json()['message']
+    assert 'generated_password' not in reset.json()
 
     login_new_password = client.post(
         '/api/auth/login',

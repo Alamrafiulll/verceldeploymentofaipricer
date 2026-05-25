@@ -1,6 +1,6 @@
 # Mock Upload Pack
 
-This folder contains realistic sample files for the Chin Hin AI Pricing Strategist upload flows.
+This folder contains realistic sample files for the RevenueMind upload flows.
 
 ## Valid files
 

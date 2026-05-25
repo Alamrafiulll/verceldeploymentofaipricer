@@ -1,4 +1,4 @@
--- Chin Hin AI Pricing Strategist
+-- RevenueMind
 -- Standalone prototype schema for Azure Database for PostgreSQL
 -- Safe to re-run (idempotent where possible)
 
@@ -152,9 +152,9 @@ CREATE INDEX IF NOT EXISTS idx_audit_entity
 -- =========================
 INSERT INTO pricing_engine.users (name, email, password_hash, role, is_active)
 VALUES
-    ('Admin User', 'admin@chinhin.local', '$2b$12$exampleReplaceWithBcryptHash', 'admin', TRUE),
-    ('Sales Manager', 'sales@chinhin.local', '$2b$12$exampleReplaceWithBcryptHash', 'sales_manager', TRUE),
-    ('Senior Management', 'director@chinhin.local', '$2b$12$exampleReplaceWithBcryptHash', 'senior_management', TRUE)
+    ('Admin User', 'admin@revenuemind.local', '$2b$12$exampleReplaceWithBcryptHash', 'admin', TRUE),
+    ('Sales Manager', 'sales@revenuemind.local', '$2b$12$exampleReplaceWithBcryptHash', 'sales_manager', TRUE),
+    ('Senior Management', 'director@revenuemind.local', '$2b$12$exampleReplaceWithBcryptHash', 'senior_management', TRUE)
 ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO pricing_engine.customers (customer_name, tier, region)
@@ -232,7 +232,7 @@ INSERT INTO pricing_engine.deal_requests
 SELECT p.product_id, c.customer_id, 80, 6.00, 23.50, u.user_id
 FROM pricing_engine.products p
 JOIN pricing_engine.customers c ON c.customer_name = 'ABC Hardware'
-JOIN pricing_engine.users u ON u.email = 'sales@chinhin.local'
+JOIN pricing_engine.users u ON u.email = 'sales@revenuemind.local'
 WHERE p.sku = 'CEM001'
   AND NOT EXISTS (
       SELECT 1
@@ -269,4 +269,3 @@ COMMIT;
 --     ON s.product_id = p.product_id
 -- GROUP BY p.product_name
 -- ORDER BY p.product_name;
-

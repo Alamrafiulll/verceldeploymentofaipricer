@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: chinhin-pricing-db
+    container_name: revenuemind-pricing-db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-pricing_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -15,7 +15,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: chinhin-pricing-api
+    container_name: revenuemind-pricing-api
     env_file:
       - .env
     environment:
@@ -30,9 +30,9 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: chinhin-pricing-frontend
-    environment:
-      VITE_API_URL: http://localhost:8000/api
+      args:
+        VITE_API_URL: http://localhost:8000/api
+    container_name: revenuemind-pricing-frontend
     ports:
       - "5173:80"
     depends_on:

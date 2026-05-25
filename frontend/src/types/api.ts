@@ -483,6 +483,26 @@ export interface DataQuality {
   average_clause_confidence: number;
 }
 
+export type EnterpriseReadinessCheckStatus = 'pass' | 'warning' | 'fail';
+export type EnterpriseReadinessStatus = 'enterprise_ready' | 'attention_needed' | 'not_ready';
+
+export interface EnterpriseReadinessCheck {
+  id: string;
+  category: string;
+  label: string;
+  status: EnterpriseReadinessCheckStatus;
+  detail: string;
+  action: string | null;
+}
+
+export interface EnterpriseReadiness {
+  score: number;
+  status: EnterpriseReadinessStatus;
+  summary: string;
+  categories: Record<string, number>;
+  checks: EnterpriseReadinessCheck[];
+}
+
 export interface SimilarApprovalCase {
   recommendation_id: string;
   quote_id: string | null;

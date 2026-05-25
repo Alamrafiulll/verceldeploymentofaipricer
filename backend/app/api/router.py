@@ -6,12 +6,9 @@ from app.api import (
     approvals,
     auth,
     bulk_import,
-    dashboard,
     master,
     market_comparison,
     policies,
-    pricing,
-    products,
     quotes,
     sandbox_dashboard,
     sandbox_pricing,
@@ -38,9 +35,6 @@ api_router.include_router(bulk_import.router)
 api_router.include_router(sandbox_products.router)
 api_router.include_router(sandbox_pricing.router)
 api_router.include_router(sandbox_dashboard.router)
-api_router.include_router(products.router)
-api_router.include_router(pricing.router)
-api_router.include_router(dashboard.router)
 
 
 @api_router.get("/me", response_model=MeResponse, tags=["auth"])

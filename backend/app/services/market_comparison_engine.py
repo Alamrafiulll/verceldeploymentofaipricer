@@ -330,7 +330,7 @@ def analyze_product_market_position(
     reasoning = (
         f"Matched {len(matches)} uploaded competitor observation(s) for category '{product.category}'. "
         f"Average competitor price is RM {avg_price:,.2f} with a range of RM {min(prices):,.2f} to RM {max(prices):,.2f}. "
-        f"Chin Hin is positioned as '{positioning_label}' with value positioning '{value_positioning_label}'."
+        f"RevenueMind is positioned as '{positioning_label}' with value positioning '{value_positioning_label}'."
     )
 
     return ValueAnalysis(

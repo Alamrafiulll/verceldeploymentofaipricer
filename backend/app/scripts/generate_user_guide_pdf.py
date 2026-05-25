@@ -5,8 +5,8 @@ import textwrap
 
 
 ROOT = Path(__file__).resolve().parents[3]
-SOURCE = ROOT / "docs" / "demo" / "Chin_Hin_AI_Pricing_Strategist_User_Guide.md"
-OUTPUT = ROOT / "docs" / "demo" / "Chin_Hin_AI_Pricing_Strategist_User_Guide.pdf"
+SOURCE = ROOT / "docs" / "demo" / "RevenueMind_User_Guide.md"
+OUTPUT = ROOT / "docs" / "demo" / "RevenueMind_User_Guide.pdf"
 
 PAGE_WIDTH = 612
 PAGE_HEIGHT = 792

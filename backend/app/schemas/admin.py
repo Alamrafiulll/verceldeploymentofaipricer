@@ -1,5 +1,6 @@
 from datetime import datetime
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -89,7 +90,7 @@ class AdminResetPasswordRequest(BaseModel):
 class AdminResetPasswordResponse(BaseModel):
     user_id: uuid.UUID
     email: str
-    generated_password: str
+    message: str
 
 
 class ModelRunOut(BaseModel):
@@ -169,3 +170,20 @@ class DataQualityOut(BaseModel):
     recommendations_with_fallback: int
     model_run_failures: int
     average_clause_confidence: float
+
+
+class EnterpriseReadinessCheckOut(BaseModel):
+    id: str
+    category: str
+    label: str
+    status: Literal["pass", "warning", "fail"]
+    detail: str
+    action: str | None = None
+
+
+class EnterpriseReadinessOut(BaseModel):
+    score: int
+    status: Literal["enterprise_ready", "attention_needed", "not_ready"]
+    summary: str
+    categories: dict[str, float]
+    checks: list[EnterpriseReadinessCheckOut]

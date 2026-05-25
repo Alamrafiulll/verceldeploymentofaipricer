@@ -9,7 +9,7 @@ REPO_DIR = BACKEND_DIR.parent
 
 
 class Settings(BaseSettings):
-    app_name: str = "Chin Hin AI Pricing Strategist"
+    app_name: str = "RevenueMind"
     environment: str = "dev"
     api_prefix: str = "/api"
 

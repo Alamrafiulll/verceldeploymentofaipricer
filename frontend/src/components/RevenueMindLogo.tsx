@@ -5,7 +5,7 @@ interface LogoProps {
   transparent?: boolean;
 }
 
-export default function ChinHinLogo({
+export default function RevenueMindLogo({
   collapsed = false,
   className = '',
   imageClassName = '',
@@ -19,19 +19,16 @@ export default function ChinHinLogo({
 
   return (
     <div className={containerClasses}>
-      {/* Light Mode Logo: Official Color Corporate Logo */}
       <img
-        src="/chin-hin-logo-color.png"
-        alt="Chin Hin Group"
+        src="/revenuemind-logo-color.svg"
+        alt="RevenueMind"
         className={`${defaultImageSize} object-contain transition-all duration-300 dark:hidden ${imageClassName}`}
       />
-      {/* Dark Mode Logo: Official White/Transparent Corporate Variant */}
       <img
-        src="/chin-hin-logo-white.png"
-        alt="Chin Hin Group"
+        src="/revenuemind-logo-white.svg"
+        alt="RevenueMind"
         className={`${defaultImageSize} object-contain transition-all duration-300 hidden dark:block ${imageClassName}`}
       />
     </div>
   );
 }
-

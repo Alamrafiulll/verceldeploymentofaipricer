@@ -1,6 +1,6 @@
 # Demo Upload Pack
 
-This folder is the easiest way to test the full Chin Hin AI Pricing Strategist upload flow.
+This folder is the easiest way to test the full RevenueMind upload flow.
 
 Use it with the Upload Center in the app:
 - Login: `admin@gmail.com`

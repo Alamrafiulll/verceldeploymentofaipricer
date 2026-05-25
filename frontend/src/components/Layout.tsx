@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-import ChinHinLogo from './ChinHinLogo';
+import RevenueMindLogo from './RevenueMindLogo';
 import { clearSession, getSession } from '../lib/auth';
 
 interface NavItem {
@@ -83,7 +83,7 @@ export default function Layout() {
       <header className="sticky top-0 z-50 border-b border-slate-200/50 bg-white/75 backdrop-blur-md dark:border-slate-800/40 dark:bg-slate-950/75 transition-all duration-300">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-5 py-3.5 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <ChinHinLogo
+            <RevenueMindLogo
               collapsed
               className="shrink-0 border border-slate-100 p-1 shadow-sm dark:border-slate-800/40"
               imageClassName="h-9 w-36"
