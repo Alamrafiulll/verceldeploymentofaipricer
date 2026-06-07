@@ -43,19 +43,19 @@ const BYPASS_USERS: Record<Role, UserMe> = {
 };
 
 const ROLE_CARDS: { role: Role; label: string; desc: string; icon: string }[] = [
-  { role: 'sales', label: 'Sales Manager', desc: 'Create deals & run pricing simulations', icon: '💼' },
-  { role: 'approver', label: 'Sales Director', desc: 'Review & approve pricing overrides', icon: '✅' },
-  { role: 'executive', label: 'Executive Viewer', desc: 'View global analytics & leakage stats', icon: '📊' },
-  { role: 'admin', label: 'Admin Governance', desc: 'Ingest policy rules & manage users', icon: '⚙️' },
+  { role: 'sales', label: 'Sales Manager', desc: 'Create deals & run pricing simulations', icon: 'SM' },
+  { role: 'approver', label: 'Sales Director', desc: 'Review & approve pricing overrides', icon: 'SD' },
+  { role: 'executive', label: 'Executive Viewer', desc: 'View global analytics & leakage stats', icon: 'EV' },
+  { role: 'admin', label: 'Admin Governance', desc: 'Ingest policy rules & manage users', icon: 'AG' },
 ];
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState('admin@gmail.com');
+  const [password, setPassword] = useState('123456');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const authBypassEnabled = String(import.meta.env.VITE_AUTH_BYPASS ?? 'false') === 'true';
+  const authBypassEnabled = String(import.meta.env.VITE_AUTH_BYPASS ?? 'true') === 'true';
 
   const completeSignIn = async (accessToken: string) => {
     const meRes = await api.get<UserMe>('/auth/me', {
@@ -159,7 +159,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 p-10 border-t border-slate-900/60 bg-slate-950/20">
           <p className="text-[11px] text-slate-600">
-            � 2026 RevenueMind. Enterprise control tower suite.
+            (c) 2026 RevenueMind. Enterprise control tower suite.
           </p>
         </div>
       </div>
@@ -199,7 +199,9 @@ export default function LoginPage() {
                     onClick={() => loginAsActor(role)}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-lg">{icon}</span>
+                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-[11px] font-extrabold tracking-wider text-indigo-300">
+                        {icon}
+                      </span>
                       <p className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors">
                         {label}
                       </p>

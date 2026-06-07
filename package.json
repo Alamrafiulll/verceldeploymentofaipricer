@@ -1,0 +1,13 @@
+{
+  "name": "revenuemind-vercel-demo",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "dev": "npm --prefix frontend run dev",
+    "preview": "npm --prefix frontend run preview"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

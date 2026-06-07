@@ -1,408 +1,106 @@
 # RevenueMind
 
-RevenueMind is an enterprise pricing control tower for pricing decisions, approvals, document understanding, market comparison, and governance. It is designed for business users, not developers.
+RevenueMind is a portfolio-ready React demo for an AI pricing control tower. It shows quote recommendations, true margin simulation, approval governance, upload review, analytics, and admin controls without requiring a separate backend deployment.
 
-The system combines:
-- AI pricing recommendation
-- smart document understanding
-- policy ingestion
-- pricebook enforcement
-- campaign eligibility
-- rebate and contract logic
-- true margin and leakage control
-- market comparison and value positioning
-- approval governance
-- decision traceability
+## Deployment Mode
 
-## What The System Does
+This repository is configured for Vercel as a single React web app:
 
-The platform helps RevenueMind replace fragmented pricing work across Excel files, CSVs, PDFs, memos, approval sheets, rebate terms, campaign notices, and manual judgment.
+- Vercel builds `frontend/`
+- The output directory is `frontend/dist`
+- Browser routes are handled by `vercel.json` rewrites
+- The Python/FastAPI backend is retained in `backend/` only as original full-stack source and local reference
+- The deployed demo uses a browser-side mock API in `frontend/src/lib/demoApi.ts`
 
-Main outcomes:
-- faster quote decisions
-- more consistent pricing
-- clearer true margin visibility
-- lower leakage risk
-- easier approval review
-- document-to-rule traceability
-- better competitor comparison
+No separate backend, database, Python runtime, or API server is required for the portfolio demo.
 
-## How The System Works
+## Demo Accounts
 
-### 1. Upload Business Files
-Users upload business files through the Upload Center.
+Password login works with password:
 
-Supported formats:
-- PDF
-- CSV
-- XLSX
-- JSON
-- TXT for testing fallback imports
+```text
+123456
+```
 
-The system:
-- validates the user role and document type
-- checks the file format
-- extracts structured content
-- creates a plain-language summary
-- stores extracted entities and confidence
-- keeps file traceability and review status
-
-### 2. Convert Documents Into Usable Business Controls
-Uploaded files can become:
-- policy documents and clauses
-- channel pricebooks
-- campaign rules
-- rebate programs
-- contract pricing controls
-- market comparison inputs
-- model and governance configurations
-
-### 3. Evaluate Quotes
-When a quote is reviewed, the backend combines:
-- quote data
-- customer and product data
-- active policy rules
-- pricebooks
-- campaigns
-- rebate and incentive effects
-- contract constraints
-- finance logic
-- uploaded competitor data
-
-It then calculates:
-- best price recommendation
-- low and high pricing range
-- recommendation confidence
-- true margin
-- leakage amount and reasons
-- policy and contract warnings
-- campaign impact
-- market position
-
-### 4. Support Governance
-If the quote is risky, the system shows:
-- why approval is needed
-- policy source reference
-- margin risk
-- leakage control impact
-- AI recommended action
-- decision trail
-
-## Roles And What They See
-
-### Sales Manager
-- create and update quotes
-- get AI recommendation
-- see true margin and leakage control summary
-- review competitor comparison
-- review campaign and rebate effects
-- request approval when needed
-
-### Sales Director Approver
-- review pending approvals
-- compare requested price vs AI recommendation
-- review policy source references
-- review true margin and leakage impact
-- approve or reject with reason
-
-### Executive Viewer
-- review pricing health
-- review approval performance
-- review margin and leakage trends
-- review competitor and category performance
-
-### Admin Governance
-- upload and review business files
-- manage users and roles
-- manage policies, campaigns, contracts, and pricebooks
-- review extraction quality
-- review AI traceability and model runs
-
-## Login Accounts
-
-All seeded demo users use password `123456`.
+Demo users:
 
 - Admin: `admin@gmail.com`
 - Sales Manager: `salesmanager@gmail.com`
 - Sales Director Approver: `salesdirector@gmail.com`
 - Executive Viewer: `executiveviewer@gmail.com`
 
-Important:
-- only the admin account can create new users
-- registration is not public
+## Working Demo Flows
 
-## Main Pages
+The React demo keeps the main product workflows active:
 
-- `/login`
-- `/sales`
-- `/sales/quotes/new`
-- `/sales/quotes/:id`
-- `/approvals`
-- `/analytics`
-- `/admin`
-- `/upload-center`
+- Sales dashboard and quote creation
+- AI pricing recommendation
+- Margin and leakage simulation
+- Approval request and approval decision
+- Upload Center with extraction review
+- Admin rules, users, model runs, audit logs, and governance summary
+- Executive analytics charts
+- Product pricing lab
 
-## Run The System Locally Without Docker
+The browser-side demo API stores temporary changes in local storage, so created quotes, approval actions, uploaded demo files, and admin edits can survive a page refresh in the same browser.
 
-This project is configured to run against native PostgreSQL on:
+## Run Locally
 
-```text
-postgresql+psycopg://postgres:postgres@localhost:5432/pricing_db
-```
-
-### 1. Check PostgreSQL
+From the repository root:
 
 ```powershell
-Test-NetConnection -ComputerName localhost -Port 5432
-```
-
-You want:
-
-```text
-TcpTestSucceeded : True
-```
-
-### 2. Configure AI Provider
-
-For a free local setup, use Ollama. This needs no API key, but you must install Ollama and pull a local model first:
-
-```powershell
-ollama pull llama3.1:8b
-```
-
-Then configure:
-
-```text
-AI_PROVIDER=ollama
-OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=llama3.1:8b
-```
-
-For a hosted paid setup, use a direct OpenAI API key:
-
-```text
-AI_PROVIDER=openai
-OPENAI_API_KEY=your-openai-api-key
-OPENAI_MODEL=gpt-5.4-mini
-OPENAI_BASE_URL=https://api.openai.com/v1
-```
-
-`llama3.1:8b` is the default free local model. `gpt-5.4-mini` remains the recommended hosted model because this app mostly needs structured JSON, document extraction, win-probability scoring, and negotiation guidance at practical latency and cost.
-
-### 3. Run Migrations And Seed Data
-
-```powershell
-cd "backend"
-& ".\.venv\Scripts\Activate.ps1"
-python -m alembic upgrade head
-python -m app.scripts.seed_data
-```
-
-### 4. Start The Backend
-
-```powershell
-cd "backend"
-& ".\.venv\Scripts\Activate.ps1"
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### 5. Start The Frontend
-
-Open a second terminal:
-
-```powershell
-cd "frontend"
-npm install
+npm install --prefix frontend
 npm run dev
 ```
 
-### 6. Open The App
+Then open:
 
-- Frontend: `http://localhost:5173`
-- API docs: `http://localhost:8000/docs`
-
-## Quick Tests
-
-### Database Test
-
-```powershell
-cd "backend"
-& ".\.venv\Scripts\Activate.ps1"
-python -c "from sqlalchemy import create_engine,text; from app.core.config import get_settings; e=create_engine(get_settings().database_url); c=e.connect(); print(c.execute(text('select 1')).scalar()); c.close()"
+```text
+http://localhost:5173
 ```
 
-### Login Test
+Build the Vercel-ready app:
 
 ```powershell
-Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8000/api/auth/login" `
-  -ContentType "application/json" `
-  -Body '{"email":"admin@gmail.com","password":"123456"}'
-```
-
-### Recommendation Test
-
-```powershell
-$sales = Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8000/api/auth/login" `
-  -ContentType "application/json" `
-  -Body '{"email":"salesmanager@gmail.com","password":"123456"}'
-
-$headers = @{ Authorization = "Bearer $($sales.access_token)" }
-$quotes = Invoke-RestMethod -Method Get `
-  -Uri "http://localhost:8000/api/quotes?mine=true" `
-  -Headers $headers
-
-$quoteId = $quotes[0].id
-
-Invoke-RestMethod -Method Post `
-  -Uri "http://localhost:8000/api/quotes/$quoteId/recommend" `
-  -Headers $headers
-```
-
-## Upload Mock Files
-
-Mock files for testing the Upload Center are already prepared in:
-
-- [docs/mock-uploads/valid](docs/mock-uploads/valid)
-- [docs/mock-uploads/invalid](docs/mock-uploads/invalid)
-- [docs/mock-uploads/README.md](docs/mock-uploads/README.md)
-
-### Recommended Upload Order
-
-Upload these first as `admin@gmail.com`:
-
-1. `product_catalog_2026.xlsx`
-2. `current_price_list_channels.xlsx`
-3. `competitor_pricing_market_scan.csv`
-4. `promotion_calendar_2026.xlsx`
-5. `pricing_policy_master_2026.pdf`
-6. `campaign_memo_dc_pump_q3_2026.pdf`
-7. `trading_terms_fy2026.pdf`
-8. `rebate_agreement_fy2026.csv`
-9. `contract_pricing_strategic_accounts.xlsx`
-10. `strategic_targets_2026.csv`
-
-These are designed to help you test:
-- upload governance
-- extracted summary and review flow
-- pricebook enforcement
-- policy ingestion
-- campaign eligibility
-- rebate and incentive logic
-- contract pricing logic
-- market comparison
-- decision traceability
-
-### Validation Failure Testing
-
-Use these files to test rejection and validation handling:
-- `current_price_list_invalid_headers.csv`
-- `campaign_memo_empty.txt`
-- `model_configuration_invalid.json`
-
-## Suggested End-To-End Demo Flow
-
-### Admin Flow
-1. Login as `admin@gmail.com`
-2. Open Upload Center
-3. Upload the recommended mock files
-4. Review extracted summaries and statuses
-5. Open Admin to inspect governance and traceability
-
-### Sales Flow
-1. Login as `salesmanager@gmail.com`
-2. Open Sales or Deal Workspace
-3. Open a quote
-4. Generate recommendation
-5. Review true margin, leakage, campaign, contract, and market comparison outputs
-6. Request approval if required
-
-### Approver Flow
-1. Login as `salesdirector@gmail.com`
-2. Open Approvals
-3. Compare requested price against AI recommendation
-4. Review policy source reference and business impact
-5. Approve or reject
-
-### Executive Flow
-1. Login as `executiveviewer@gmail.com`
-2. Open Analytics
-3. Review pricing health, leakage trends, approval performance, and strategic views
-
-## Repo Structure
-
-Key directories:
-- `backend/` FastAPI app, models, services, schemas, migrations, tests
-- `frontend/` React and TypeScript UI
-- `docs/mock-uploads/` sample upload files
-- `docs/screenshots/` screenshot target folder
-
-## Core API Areas
-
-- Auth: `/api/auth/*`
-- Quotes: `/api/quotes/*`
-- Approvals: `/api/approvals/*`
-- Analytics: `/api/analytics/*`
-- Admin: `/api/admin/*`
-- Policies: `/api/policies/*`
-- Pricebooks: `/api/pricebooks/*`
-- Campaigns: `/api/campaigns/*`
-- Uploads: `/api/uploads/*`
-- Upload Center: `/api/upload-center/*`
-- Market: `/api/market/*`
-- Sandbox: `/api/sandbox/*`
-
-## AI Behavior
-
-The system uses local Ollama when `AI_PROVIDER=ollama`. It uses the OpenAI Responses API when `AI_PROVIDER=openai` and `OPENAI_API_KEY` is configured. Legacy Azure OpenAI / Foundry settings are still supported as a fallback for older deployments.
-
-If the external service is unavailable:
-- the system can use fallback logic for continuity
-- governance, finance, policy, contract, campaign, and pricebook logic still run from stored business data
-
-## Tests
-
-Backend:
-
-```powershell
-cd "backend"
-& ".\.venv\Scripts\Activate.ps1"
-python -m pytest tests -q
-```
-
-Frontend:
-
-```powershell
-cd "frontend"
 npm run build
 ```
 
-## Git Setup And Push
-
-Initialize and push the repository:
+Preview the production build:
 
 ```powershell
-git init
-git add .
-git commit -m "first commit"
-git branch -M main
-git remote add origin https://github.com/Alamrafiulll/chinhin_group_cashmeifyoucan.git
-git push -u origin main
+npm run preview
 ```
 
-If `origin` already exists:
+## Optional Real Backend Mode
 
-```powershell
-git remote set-url origin https://github.com/Alamrafiulll/chinhin_group_cashmeifyoucan.git
-git branch -M main
-git push -u origin main
+The original FastAPI backend is still present for local full-stack experimentation. It is not used by the Vercel portfolio deployment.
+
+To point the frontend back at a real API, set:
+
+```text
+VITE_USE_REAL_API=true
+VITE_API_URL=http://localhost:8000/api
 ```
 
-## Notes
+Then run the backend manually from `backend/` using the original Python setup.
 
-- `.env` files are ignored by git
-- logs are ignored by git
-- the local virtual environment is ignored by git
-- use PostgreSQL, not SQLite, for local runtime
-- competitor data is upload-driven; no live web scraping is required
+## Vercel
+
+The included `vercel.json` uses:
+
+```json
+{
+  "installCommand": "npm install --prefix frontend",
+  "buildCommand": "npm run build --prefix frontend",
+  "outputDirectory": "frontend/dist"
+}
+```
+
+Import this GitHub repository into Vercel and deploy it as-is.
+
+## Repository Notes
+
+- `frontend/` is the deployable React/Vite app
+- `frontend/src/lib/demoApi.ts` replaces backend calls for the hosted demo
+- `backend/` is kept for reference and local full-stack development
+- `.vercelignore` excludes backend and large local/demo assets from Vercel upload

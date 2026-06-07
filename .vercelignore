@@ -1,0 +1,8 @@
+backend/
+docs/
+.venv/
+app.log
+docker-compose.yml
+pricing_engine_schema.sql
+*.pyc
+__pycache__/
