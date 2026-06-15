@@ -55,7 +55,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('123456');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const authBypassEnabled = String(import.meta.env.VITE_AUTH_BYPASS ?? 'true') === 'true';
+  const authBypassEnabled = String(process.env.NEXT_PUBLIC_AUTH_BYPASS ?? 'true') === 'true';
 
   const completeSignIn = async (accessToken: string) => {
     const meRes = await api.get<UserMe>('/auth/me', {

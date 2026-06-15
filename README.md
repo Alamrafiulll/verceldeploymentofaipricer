@@ -4,6 +4,23 @@ This project was made for the Chin Hin hackathon.
 
 This repository is only a demo of the original project.
 
+## Frontend
+
+The frontend uses Next.js for the deployable app shell and static export, while the existing React screens continue to run as a client-side pricing workspace.
+
+```bash
+cd frontend
+npm install
+npm run dev
+npm run build
+```
+
+Public frontend environment variables use Next.js names:
+
+- `NEXT_PUBLIC_API_URL` defaults to `http://localhost:8000/api`
+- `NEXT_PUBLIC_USE_REAL_API` defaults to `false`
+- `NEXT_PUBLIC_AUTH_BYPASS` defaults to `true`
+
 ## UI Screenshots
 
 ![Login screen](docs/screenshots/01-login.png)
