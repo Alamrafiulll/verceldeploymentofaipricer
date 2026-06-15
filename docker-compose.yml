@@ -31,9 +31,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8000/api
-        NEXT_PUBLIC_AUTH_BYPASS: "true"
-        NEXT_PUBLIC_USE_REAL_API: "false"
+        VITE_API_URL: http://localhost:8000/api
     container_name: revenuemind-pricing-frontend
     ports:
       - "5173:80"

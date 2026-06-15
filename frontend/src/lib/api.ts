@@ -2,10 +2,10 @@ import axios from 'axios';
 
 import { createDemoApi, type ApiClient } from './demoApi';
 
-const useRealApi = String(process.env.NEXT_PUBLIC_USE_REAL_API ?? 'false') === 'true';
+const useRealApi = String(import.meta.env.VITE_USE_REAL_API ?? 'false') === 'true';
 
 const realApi = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api',
 });
 
 realApi.interceptors.request.use((config) => {
